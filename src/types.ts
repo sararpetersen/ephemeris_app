@@ -30,6 +30,7 @@ export const DRAGON_SPECIES: DragonSpecies[] = [
   { key: "glassscale", name: "Glassscale", emoji: "💎", image: "/images/glassscale.webp", represents: "Hyperfocus, flow state" },
   { key: "fog-drake", name: "Fog-drake", emoji: "🌫️", image: "/images/fog-drake.webp", represents: "Brain fog, hard to think" },
   { key: "thornback", name: "Thornback", emoji: "🌵", image: "/images/thornback.webp", represents: "Irritable, sensory-defensive" },
+  { key: "mosshide", name: "Mosshide", emoji: "🍃", image: "/images/mosshide.webp", represents: "Calm and settled – an ordinary day" },
 ];
 
 export const SENSORY_OPTIONS = [
