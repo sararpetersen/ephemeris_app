@@ -1,0 +1,205 @@
+@import "tailwindcss";
+@import "animate.css";
+
+:root {
+  --background: #f5f4f0;
+  --foreground: #211f2b;
+  --card: #ffffff;
+  --border: #e2e0da;
+  --surface-1: #ece9e2;
+  --surface-2: #ddd9d0;
+  --muted-foreground: #63606f;
+  --primary: #a8462f;
+  --primary-foreground: #fff7f1;
+  --ember-bg: rgba(168, 70, 47, 0.12);
+  --ember-text: #a8462f;
+  --glass-bg: rgba(58, 141, 158, 0.12);
+  --glass-vivid: #3a8d9e;
+  --glass-text: #266a78;
+  --input-background: #ffffff;
+  --destructive: #c0392b;
+  --shell-scrim: rgba(245, 244, 240, 0.9);
+  --primary-hover: #8a3a26;
+  --tab-active: #8f3d29;
+  --primary-rgb: 168, 70, 47;
+
+  --font-heading: "Cinzel", "Iowan Old Style", Georgia, serif;
+  --font-body: "Merriweather", "Iowan Old Style", Georgia, serif;
+
+  font: 16px/150% var(--font-body);
+  color-scheme: light dark;
+}
+
+:root.dark {
+  --background: #15141b;
+  --foreground: #f1eee8;
+  --card: #1e1c26;
+  --border: #322f3d;
+  --surface-1: #262330;
+  --surface-2: #322f3d;
+  --muted-foreground: #a29db3;
+  --primary: #e07a56;
+  --primary-foreground: #1a1015;
+  --ember-bg: rgba(224, 122, 86, 0.15);
+  --ember-text: #e07a56;
+  --glass-bg: rgba(92, 190, 209, 0.15);
+  --glass-vivid: #5cbed1;
+  --glass-text: #7fd3e4;
+  --input-background: #262330;
+  --destructive: #e0665a;
+  --shell-scrim: rgba(21, 20, 27, 0.88);
+  --primary-hover: #eb9376;
+  --tab-active: #c96b48;
+  --primary-rgb: 224, 122, 86;
+}
+
+:root.reduce-motion *,
+:root.reduce-motion *::before,
+:root.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+:root.high-contrast {
+  --border: #000000;
+  --muted-foreground: #3a3a3a;
+}
+:root.high-contrast.dark {
+  --border: #ffffff;
+  --muted-foreground: #d8d8d8;
+}
+
+:root.font-large { font-size: 18px; }
+:root.font-xlarge { font-size: 21px; }
+
+:root.font-readable {
+  --font-heading: Verdana, "Trebuchet MS", sans-serif;
+  --font-body: Verdana, "Trebuchet MS", sans-serif;
+}
+:root.font-readable body {
+  letter-spacing: 0.01em;
+}
+
+:root.line-spacious p,
+:root.line-spacious span {
+  line-height: 1.9;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+}
+
+button {
+  cursor: pointer !important;
+  transition:
+    background-color 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+button:disabled {
+  cursor: not-allowed !important;
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+  letter-spacing: 0.01em;
+}
+
+/* Clear hover feedback for clickable cards/options, overriding their
+   inline border-color so hover reads consistently regardless of state. */
+.option-card {
+  cursor: pointer;
+}
+.option-card:hover {
+  border-color: var(--primary) !important;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+}
+
+.link-hover {
+  cursor: pointer;
+}
+.link-hover:hover {
+  color: var(--foreground) !important;
+  text-decoration: underline;
+}
+
+.icon-hover {
+  cursor: pointer;
+}
+.icon-hover:hover {
+  background-color: var(--surface-1);
+  color: var(--foreground) !important;
+}
+
+/* For rows that already sit on a --surface-1 parent (so .icon-hover's
+   background would be invisible against it). Adds both a tone step and
+   an inset border so the hover remains obvious in low-contrast themes. */
+.row-hover {
+  cursor: pointer;
+}
+.row-hover:hover,
+.row-hover:focus-visible {
+  background-color: var(--surface-2) !important;
+  color: var(--foreground) !important;
+  box-shadow:
+    inset 0 0 0 2px var(--primary),
+    0 0 0 3px rgba(var(--primary-rgb), 0.16) !important;
+  outline: none;
+}
+
+/* Tab-style toggle (e.g. Sign up / Log in): only the inactive tab gets
+   this hover — applied conditionally so hovering the already-selected
+   tab never flashes it lighter. */
+.tab-hover:hover {
+  background-color: var(--surface-2) !important;
+}
+
+/* Text inputs get a visible hover cue distinct from the focus state. */
+input {
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+input:hover:not(:focus) {
+  border-color: var(--muted-foreground) !important;
+}
+
+/* Primary buttons: position and fill stay put on hover, a soft glow
+   ring appears around them instead. */
+.btn-primary:hover {
+  box-shadow:
+    0 0 0 4px rgba(var(--primary-rgb), 0.28),
+    0 0 20px 2px rgba(var(--primary-rgb), 0.4) !important;
+}
+.btn-primary:active {
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.4) !important;
+}
+
+/* Visual polish: the illustrated dragon landscape as a backdrop, dimmed
+   with a scrim so foreground text/cards stay readable, plus layered
+   card shadows and small decorative accents. */
+.app-shell {
+  position: relative;
+  min-height: 100vh;
+  background:
+    linear-gradient(var(--shell-scrim), var(--shell-scrim)),
+    url("/images/background.webp") center 35% / cover no-repeat,
+    var(--background);
+}
+:root.high-contrast .app-shell {
+  background: var(--background);
+}
+
+.card-surface {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 16px 40px -20px rgba(0, 0, 0, 0.25);
+}
+
+.accent-bar {
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary), var(--glass-vivid));
+}
