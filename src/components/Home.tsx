@@ -1,0 +1,286 @@
+import { useState, type ReactNode } from "react";
+import { Check, Settings as SettingsIcon } from "lucide-react";
+import { CONTEXT_TAGS, DRAGON_SPECIES, type ProfileData, type Sighting } from "../types";
+
+function relativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days} days ago`;
+  return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function isToday(ts: number): boolean {
+  const date = new Date(ts);
+  const today = new Date();
+  return date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate();
+}
+
+function pickMoodDragons(profile: ProfileData) {
+  const preferred = DRAGON_SPECIES.filter((d) => profile.dragonRoster.includes(d.key)).sort(() => Math.random() - 0.5);
+  const others = DRAGON_SPECIES.filter((d) => !profile.dragonRoster.includes(d.key)).sort(() => Math.random() - 0.5);
+  return [...preferred, ...others].slice(0, 3).sort(() => Math.random() - 0.5);
+}
+
+interface Props {
+  profile: ProfileData;
+  sightings: Sighting[];
+  onLog: (s: Sighting) => void;
+  onUpdateSighting: (id: string, patch: Pick<Sighting, "context" | "note">) => void;
+  onOpenSettings: () => void;
+  accountLabel: ReactNode;
+}
+
+export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettings, accountLabel }: Props) {
+  const [moodDragons] = useState(() => pickMoodDragons(profile));
+  const [selectedDragon, setSelectedDragon] = useState<string | null>(null);
+  const [activeSightingId, setActiveSightingId] = useState<string | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [note, setNote] = useState("");
+  const [justLogged, setJustLogged] = useState(false);
+  const latestToday = sightings
+    .filter((s) => isToday(s.timestamp))
+    .sort((a, b) => b.timestamp - a.timestamp)[0];
+  const latestTodayDragon = latestToday ? DRAGON_SPECIES.find((d) => d.key === latestToday.dragonKey) : undefined;
+  const todayLocked = Boolean(latestToday && !activeSightingId);
+
+  const toggleTag = (key: string) => setTags((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+
+  const logSighting = (dragonKey: string) => {
+    const sighting = {
+      id: crypto.randomUUID(),
+      dragonKey,
+      context: [],
+      note: "",
+      timestamp: Date.now(),
+    };
+    onLog(sighting);
+    setSelectedDragon(dragonKey);
+    setActiveSightingId(sighting.id);
+    setTags([]);
+    setNote("");
+    setJustLogged(true);
+  };
+
+  const saveDetails = () => {
+    if (!activeSightingId) return;
+    onUpdateSighting(activeSightingId, { context: tags, note: note.trim() });
+    setActiveSightingId(null);
+    setTags([]);
+    setNote("");
+    setTimeout(() => setJustLogged(false), 3000);
+  };
+
+  return (
+    <div className="app-shell animate__animated animate__fadeIn">
+      <div className="max-w-lg mx-auto px-6 py-8 space-y-6" style={{ position: "relative" }}>
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <div
+            className="rounded-2xl flex items-center justify-center card-surface"
+            style={{ width: 56, height: 56, backgroundColor: "var(--ember-bg)", fontSize: "2rem", overflow: "hidden" }}
+          >
+            {profile.avatarPhoto ? (
+              <img src={profile.avatarPhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              profile.avatar
+            )}
+          </div>
+          <div className="flex-1">
+            <h1 className="font-heading" style={{ fontWeight: 800, fontSize: "1.4rem", color: "var(--foreground)", marginBottom: 6 }}>
+              {profile.name ? `Hello, ${profile.name}` : "Hello, researcher"}
+            </h1>
+            <p style={{ fontSize: "0.9rem", color: "var(--muted-foreground)" }}>{accountLabel}</p>
+          </div>
+          <button onClick={onOpenSettings} aria-label="Settings" className="p-3 rounded-full icon-hover" style={{ color: "var(--muted-foreground)" }}>
+            <SettingsIcon size={22} />
+          </button>
+        </div>
+
+        {/* Log a sighting */}
+        <div className="rounded-2xl border overflow-hidden card-surface" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+          <div className="accent-bar" />
+          <div className="p-5 space-y-4">
+            <div>
+              <h2 className="font-heading" style={{ fontWeight: 700, color: "var(--foreground)" }}>
+                Log a sighting
+              </h2>
+              <p style={{ fontSize: "0.88rem", color: "var(--muted-foreground)" }}>Which dragon has shown up? Tap one to record it.</p>
+            </div>
+
+            {latestTodayDragon && !activeSightingId && (
+              <p
+                className="rounded-xl px-4 py-3 flex items-center gap-2"
+                style={{ backgroundColor: "var(--glass-bg)", color: "var(--glass-text)", fontSize: "0.88rem" }}
+              >
+                <Check size={16} /> Already logged today: {latestTodayDragon.name}.
+              </p>
+            )}
+
+            <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))" }}>
+              {moodDragons.map((d) => {
+                const active = selectedDragon === d.key;
+                return (
+                  <button
+                    key={d.key}
+                    onClick={() => logSighting(d.key)}
+                    disabled={todayLocked}
+                    className="dragon-tooltip rounded-xl p-3 border-2 text-center option-card"
+                    style={{
+                      backgroundColor: active ? "var(--ember-bg)" : "var(--surface-1)",
+                      borderColor: active ? "var(--primary)" : "transparent",
+                      opacity: todayLocked ? 0.62 : 1,
+                    }}
+                    aria-pressed={active}
+                    aria-label={`${d.name}: ${d.represents}`}
+                    data-tooltip={d.represents}
+                  >
+                    <div className="rounded-lg mx-auto" style={{ width: 56, height: 56, overflow: "hidden" }}>
+                      <img src={d.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                    </div>
+                    <p
+                      className="font-heading"
+                      style={{ fontWeight: active ? 700 : 600, fontSize: "0.82rem", marginTop: 6, color: "var(--foreground)" }}
+                    >
+                      {d.name}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {activeSightingId && (
+              <div className="space-y-3 animate__animated animate__fadeIn animate__faster">
+                <p
+                  className="rounded-xl px-4 py-3 flex items-center gap-2"
+                  style={{ backgroundColor: "var(--glass-bg)", color: "var(--glass-text)", fontSize: "0.88rem" }}
+                >
+                  <Check size={16} /> Sighting logged. Add details if you want.
+                </p>
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: "0.88rem", marginBottom: 6, color: "var(--foreground)" }}>
+                    Where are you? <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}>(optional)</span>
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    {CONTEXT_TAGS.map((t) => {
+                      const active = tags.includes(t.key);
+                      return (
+                        <button
+                          key={t.key}
+                          onClick={() => toggleTag(t.key)}
+                          className="rounded-xl px-3 py-2 border-2 option-card"
+                          style={{
+                            backgroundColor: active ? "var(--glass-bg)" : "var(--surface-1)",
+                            borderColor: active ? "var(--glass-vivid)" : "transparent",
+                            color: active ? "var(--glass-text)" : "var(--foreground)",
+                            fontWeight: active ? 700 : 500,
+                            fontSize: "0.85rem",
+                          }}
+                          aria-pressed={active}
+                        >
+                          {t.emoji} {t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && saveDetails()}
+                  placeholder="Field note (optional)"
+                  className="w-full rounded-xl px-4 py-3 border outline-none"
+                  style={{
+                    backgroundColor: "var(--input-background)",
+                    borderColor: "var(--border)",
+                    color: "var(--foreground)",
+                    fontSize: "0.92rem",
+                  }}
+                />
+                <button
+                  onClick={saveDetails}
+                  className="w-full rounded-2xl py-3.5 btn-primary"
+                  style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)", fontWeight: 700, fontSize: "1rem" }}
+                >
+                  Save details
+                </button>
+              </div>
+            )}
+
+            {justLogged && !activeSightingId && (
+              <p
+                className="rounded-xl px-4 py-3 flex items-center gap-2 animate__animated animate__fadeIn animate__faster"
+                style={{ backgroundColor: "var(--glass-bg)", color: "var(--glass-text)", fontSize: "0.88rem" }}
+              >
+                <Check size={16} /> Recorded in your field journal.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Ornamental divider */}
+        <div aria-hidden="true" style={{ textAlign: "center", color: "var(--muted-foreground)", opacity: 0.55, fontSize: "1.1rem", lineHeight: 1 }}>
+          ❦
+        </div>
+
+        {/* Field notes — styled like a journal page */}
+        <div className="rounded-2xl border overflow-hidden card-surface" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+          <div className="journal-page py-5 pr-5" style={{ paddingLeft: 60 }}>
+            <div className="flex items-baseline justify-between gap-2" style={{ marginBottom: 12 }}>
+              <h2 className="font-heading" style={{ fontWeight: 700, color: "var(--foreground)" }}>
+                Field notes
+              </h2>
+              <span style={{ fontStyle: "italic", fontSize: "0.82rem", color: "var(--muted-foreground)" }}>
+                {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+              </span>
+            </div>
+            {sightings.length === 0 ? (
+              <p style={{ fontStyle: "italic", fontSize: "0.9rem", color: "var(--muted-foreground)" }}>Nothing logged yet — whenever you're ready.</p>
+            ) : (
+              <div>
+                {[...sightings]
+                  .sort((a, b) => b.timestamp - a.timestamp)
+                  .slice(0, 15)
+                  .map((s) => {
+                    const dragon = DRAGON_SPECIES.find((d) => d.key === s.dragonKey);
+                    if (!dragon) return null;
+                    const tagLabels = s.context
+                      .map((k) => CONTEXT_TAGS.find((t) => t.key === k))
+                      .filter(Boolean)
+                      .map((t) => `${t!.emoji} ${t!.label}`);
+                    return (
+                      <div key={s.id} className="journal-entry flex items-start gap-3 py-3">
+                        <div className="rounded-lg shrink-0" style={{ width: 44, height: 44, overflow: "hidden" }}>
+                          <img src={dragon.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                        </div>
+                        <div className="flex-1" style={{ minWidth: 0 }}>
+                          <div className="flex items-baseline justify-between gap-2">
+                            <p className="font-heading" style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--foreground)" }}>
+                              {dragon.name}
+                            </p>
+                            <span style={{ fontStyle: "italic", fontSize: "0.75rem", color: "var(--muted-foreground)", flexShrink: 0 }}>
+                              {relativeTime(s.timestamp)}
+                            </span>
+                          </div>
+                          {tagLabels.length > 0 && (
+                            <p style={{ fontSize: "0.78rem", color: "var(--muted-foreground)", marginTop: 1 }}>{tagLabels.join(" · ")}</p>
+                          )}
+                          {s.note && <p style={{ fontStyle: "italic", fontSize: "0.88rem", marginTop: 4, color: "var(--foreground)" }}>{s.note}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

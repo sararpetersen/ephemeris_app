@@ -3,9 +3,17 @@ import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { hashPassword } from "../utils/crypto";
 import { applyA11y } from "../utils/applyA11y";
 import { AccessibilityStep } from "./AccessibilityStep";
-import { DEFAULT_A11Y, DEFAULT_PROFILE, DRAGON_SPECIES, SENSORY_OPTIONS, SUPPORT_OPTIONS, type A11ySettings, type ProfileData } from "../types";
-
-const AVATARS = ["🐉", "🐲", "🥚", "🦎", "🔥", "❄️", "⭐", "🌙", "🍃", "🌊", "🌵", "🌫️"];
+import {
+  AVATARS,
+  DEFAULT_A11Y,
+  DEFAULT_PROFILE,
+  DRAGON_SPECIES,
+  PRONOUN_OPTIONS,
+  SENSORY_OPTIONS,
+  SUPPORT_OPTIONS,
+  type A11ySettings,
+  type ProfileData,
+} from "../types";
 
 const TOTAL_STEPS = 6;
 
@@ -20,6 +28,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
   const [name, setName] = useState("");
   const [pronoun, setPronoun] = useState("");
   const [avatar, setAvatar] = useState("🐉");
+  const [avatarPhoto, setAvatarPhoto] = useState("");
   const [sensory, setSensory] = useState<string[]>([]);
   const [support, setSupport] = useState<string[]>([]);
   const [dragonRoster, setDragonRoster] = useState<string[]>([]);
@@ -37,6 +46,13 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
 
   const toggleFrom = (list: string[], set: (v: string[]) => void, key: string) =>
     set(list.includes(key) ? list.filter((k) => k !== key) : [...list, key]);
+
+  const uploadAvatarPhoto = (file: File | undefined) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setAvatarPhoto(typeof reader.result === "string" ? reader.result : "");
+    reader.readAsDataURL(file);
+  };
 
   const registerAndFinish = async () => {
     setSignUpError("");
@@ -71,6 +87,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
       name: name.trim() || DEFAULT_PROFILE.name,
       pronoun,
       avatar,
+      avatarPhoto,
       sensory,
       support,
       dragonRoster,
@@ -156,14 +173,25 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                   className="w-full rounded-2xl px-5 py-4 border outline-none"
                   style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", color: "var(--foreground)", fontSize: "1.1rem" }}
                 />
-                <input
-                  type="text"
+                <select
                   value={pronoun}
                   onChange={(e) => setPronoun(e.target.value)}
-                  placeholder="Pronouns (optional)"
-                  className="w-full rounded-2xl px-5 py-4 border outline-none"
-                  style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", color: "var(--foreground)", fontSize: "1rem" }}
-                />
+                  aria-label="Pronouns (optional)"
+                  className="w-full rounded-2xl px-5 py-4 border outline-none select-field"
+                  style={{
+                    backgroundColor: "var(--card)",
+                    borderColor: "var(--border)",
+                    color: pronoun ? "var(--foreground)" : "var(--muted-foreground)",
+                    fontSize: "1rem",
+                  }}
+                >
+                  <option value="">Pronouns (optional)</option>
+                  {PRONOUN_OPTIONS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
 
@@ -172,15 +200,39 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
               <div className="flex flex-col gap-5 flex-1 animate__animated animate__fadeIn animate__faster">
                 <div>
                   <h2 className="font-heading" style={{ fontWeight: 800, marginBottom: 8, color: "var(--foreground)" }}>
-                    Pick an icon
+                    Pick a profile image
                   </h2>
-                  <p style={{ fontSize: "0.95rem", color: "var(--muted-foreground)" }}>Just for your profile — you can change it later.</p>
+                  <p style={{ fontSize: "0.95rem", color: "var(--muted-foreground)" }}>
+                    Choose an icon or add your own photo – you can change it later.
+                  </p>
                 </div>
                 <div
                   className="rounded-2xl p-4 flex items-center justify-center border card-surface"
-                  style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", fontSize: "4rem", height: 100 }}
+                  style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", fontSize: "4rem", height: 120 }}
                 >
-                  {avatar}
+                  {avatarPhoto ? (
+                    <img src={avatarPhoto} alt="" className="rounded-2xl" style={{ width: 88, height: 88, objectFit: "cover" }} />
+                  ) : (
+                    avatar
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <label
+                    className="flex-1 rounded-xl py-3 border-2 option-card text-center"
+                    style={{ backgroundColor: "var(--surface-1)", borderColor: "transparent", color: "var(--foreground)", fontWeight: 700, fontSize: "0.9rem" }}
+                  >
+                    Add photo
+                    <input type="file" accept="image/*" className="sr-only" onChange={(e) => uploadAvatarPhoto(e.target.files?.[0])} />
+                  </label>
+                  {avatarPhoto && (
+                    <button
+                      onClick={() => setAvatarPhoto("")}
+                      className="rounded-xl px-4 py-3 border-2 option-card"
+                      style={{ backgroundColor: "var(--surface-1)", borderColor: "transparent", color: "var(--foreground)", fontWeight: 700, fontSize: "0.9rem" }}
+                    >
+                      Use icon
+                    </button>
+                  )}
                 </div>
                 <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(6, 1fr)" }}>
                   {AVATARS.map((e) => (
@@ -211,7 +263,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                     Anything we should know?
                   </h2>
                   <p style={{ fontSize: "0.95rem", color: "var(--muted-foreground)" }}>
-                    Pick as many as apply, or skip — this just helps tailor things later.
+                    Pick as many as apply, or skip – this just helps tailor things later.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -299,7 +351,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                     Build your roster
                   </h2>
                   <p style={{ fontSize: "0.95rem", color: "var(--muted-foreground)" }}>
-                    These are the dragons you'll be able to log sightings of. Pick the ones that sound familiar — you can add more later.
+                    Pick the dragons you'd like to see more often in your mood check-ins – you can always change them later.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -351,9 +403,15 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                   <h2 className="font-heading" style={{ fontWeight: 800, marginBottom: 8, color: "var(--foreground)" }}>
                     Make it comfortable
                   </h2>
-                  <p style={{ fontSize: "0.95rem", color: "var(--muted-foreground)" }}>Adjust anything that helps — all optional.</p>
+                  <p style={{ fontSize: "0.95rem", color: "var(--muted-foreground)" }}>Adjust anything that helps – all optional.</p>
                 </div>
                 <AccessibilityStep settings={a11y} onChange={updateA11y} />
+                <p
+                  className="rounded-xl px-4 py-3"
+                  style={{ backgroundColor: "var(--glass-bg)", color: "var(--glass-text)", fontSize: "0.85rem", lineHeight: 1.6 }}
+                >
+                  Every setting here applies instantly and can be changed again later — nothing is locked in.
+                </p>
               </div>
             )}
 

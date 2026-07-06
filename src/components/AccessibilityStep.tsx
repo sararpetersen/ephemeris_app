@@ -1,12 +1,10 @@
 import type { A11ySettings } from "../types";
 
-function ToggleRow({ label, description, value, onChange }: {
-  label: string; description: string; value: boolean; onChange: (v: boolean) => void;
-}) {
+function ToggleRow({ label, description, value, onChange }: { label: string; description: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       onClick={() => onChange(!value)}
-      className="w-full flex items-center justify-between rounded-xl p-4 text-left border-2 option-card card-surface"
+      className="w-full flex items-center justify-between rounded-xl p-4 text-left border-2 option-card soft-option"
       style={{
         backgroundColor: value ? "var(--ember-bg)" : "var(--surface-1)",
         borderColor: value ? "var(--primary)" : "transparent",
@@ -19,19 +17,21 @@ function ToggleRow({ label, description, value, onChange }: {
         <p style={{ fontSize: "0.85rem", marginTop: 2, color: "var(--muted-foreground)" }}>{description}</p>
       </div>
       <div
-        className="flex-shrink-0 rounded-full relative"
+        className="shrink-0 rounded-full relative"
         style={{ width: 44, height: 24, backgroundColor: value ? "var(--primary)" : "var(--muted-foreground)" }}
       >
-        <div
-          className="absolute top-1 rounded-full bg-white"
-          style={{ width: 16, height: 16, left: value ? 24 : 4, transition: "left 0.2s" }}
-        />
+        <div className="absolute top-1 rounded-full bg-white" style={{ width: 16, height: 16, left: value ? 24 : 4, transition: "left 0.2s" }} />
       </div>
     </button>
   );
 }
 
-function OptionGroup<V extends string>({ label, options, value, onChange }: {
+function OptionGroup<V extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
   label: string;
   options: { value: V; label: string; hint?: string }[];
   value: V;
@@ -57,7 +57,9 @@ function OptionGroup<V extends string>({ label, options, value, onChange }: {
           >
             <span style={{ fontSize: "0.9rem" }}>{opt.label}</span>
             {opt.hint && (
-              <span className="block" style={{ fontSize: "0.75rem", marginTop: 1, color: "var(--muted-foreground)" }}>{opt.hint}</span>
+              <span className="block" style={{ fontSize: "0.75rem", marginTop: 1, color: "var(--muted-foreground)" }}>
+                {opt.hint}
+              </span>
             )}
           </button>
         ))}
@@ -127,13 +129,6 @@ export function AccessibilityStep({ settings, onChange }: Props) {
           onChange={(v) => update({ darkMode: v })}
         />
       </div>
-
-      <p
-        className="rounded-xl px-4 py-3"
-        style={{ backgroundColor: "var(--glass-bg)", color: "var(--glass-text)", fontSize: "0.85rem", lineHeight: 1.6 }}
-      >
-        Every setting here applies instantly and can be changed again later — nothing is locked in.
-      </p>
     </div>
   );
 }

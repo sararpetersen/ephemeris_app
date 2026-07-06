@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { AuthPage, type AuthState } from "./components/AuthPage";
 import { Onboarding } from "./components/Onboarding";
+import { Home } from "./components/Home";
+import { Settings } from "./components/Settings";
 import { applyA11y } from "./utils/applyA11y";
-import { DEFAULT_PROFILE, DRAGON_SPECIES, type ProfileData } from "./types";
+import { DEFAULT_PROFILE, type ProfileData, type Sighting } from "./types";
 
 type Stage = "auth" | "onboarding" | "app";
+type Screen = "home" | "settings";
 
 function loadProfile(): ProfileData | null {
   try {
@@ -15,15 +18,61 @@ function loadProfile(): ProfileData | null {
   }
 }
 
+function loadSightings(): Sighting[] {
+  try {
+    const raw = localStorage.getItem("ephemeris-sightings");
+    return raw ? (JSON.parse(raw) as Sighting[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function cleanVersion(version: string): string {
+  return version.replaceAll("_", ".");
+}
+
+function getOsLabel(ua: string, touchMac: boolean): string {
+  const iosVersion = ua.match(/(?:iphone|ipad).*os ([\d_]+)/)?.[1];
+  const androidVersion = ua.match(/android ([\d.]+)/)?.[1];
+  const windowsVersion = ua.match(/windows nt ([\d.]+)/)?.[1];
+
+  if (touchMac) return "iPadOS";
+  if (iosVersion) return `iOS ${cleanVersion(iosVersion)}`;
+  if (androidVersion) return `Android ${androidVersion}`;
+  if (ua.includes("mac os x")) return "macOS";
+  if (windowsVersion === "10.0") return "Windows 10/11";
+  if (windowsVersion === "6.3") return "Windows 8.1";
+  if (windowsVersion === "6.2") return "Windows 8";
+  if (windowsVersion === "6.1") return "Windows 7";
+  if (windowsVersion) return `Windows ${windowsVersion}`;
+  if (ua.includes("linux")) return "Linux";
+  return "";
+}
+
+function getLocalJournalLabel() {
+  const platform = navigator.platform.toLowerCase();
+  const ua = navigator.userAgent.toLowerCase();
+  const touchMac = platform.includes("mac") && navigator.maxTouchPoints > 1;
+  const osLabel = getOsLabel(ua, touchMac);
+  return (
+    <>
+      Field journal | this device{osLabel ? <> <em>({osLabel})</em></> : null}
+    </>
+  );
+}
+
 function App() {
   const [stage, setStage] = useState<Stage>("auth");
+  const [screen, setScreen] = useState<Screen>("home");
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [profile, setProfile] = useState<ProfileData>(DEFAULT_PROFILE);
+  const [sightings, setSightings] = useState<Sighting[]>([]);
 
   useEffect(() => {
     const existing = loadProfile();
     if (existing) {
       setProfile(existing);
+      setSightings(loadSightings());
       applyA11y(existing.a11y);
       setStage("app");
     }
@@ -31,14 +80,58 @@ function App() {
 
   const handleAuth = (state: AuthState) => {
     setAuth(state);
-    setStage("onboarding");
+    const existing = loadProfile();
+    if (existing) {
+      setProfile(existing);
+      setSightings(loadSightings());
+      applyA11y(existing.a11y);
+      setStage("app");
+    } else {
+      setStage("onboarding");
+    }
   };
 
-  const handleOnboardingComplete = (p: ProfileData) => {
+  const saveProfile = (p: ProfileData) => {
     setProfile(p);
     localStorage.setItem("ephemeris-profile", JSON.stringify(p));
     applyA11y(p.a11y);
+  };
+
+  const handleOnboardingComplete = (p: ProfileData) => {
+    saveProfile(p);
     setStage("app");
+  };
+
+  const handleLog = (s: Sighting) => {
+    setSightings((prev) => {
+      const next = [...prev, s];
+      localStorage.setItem("ephemeris-sightings", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleUpdateSighting = (id: string, patch: Pick<Sighting, "context" | "note">) => {
+    setSightings((prev) => {
+      const next = prev.map((s) => (s.id === id ? { ...s, ...patch } : s));
+      localStorage.setItem("ephemeris-sightings", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleSignOut = () => {
+    setAuth(null);
+    setScreen("home");
+    setStage("auth");
+  };
+
+  const handleClearData = () => {
+    localStorage.removeItem("ephemeris-profile");
+    localStorage.removeItem("ephemeris-sightings");
+    setProfile(DEFAULT_PROFILE);
+    setSightings([]);
+    setAuth(null);
+    setScreen("home");
+    setStage("auth");
   };
 
   if (stage === "auth") {
@@ -46,61 +139,24 @@ function App() {
   }
 
   if (stage === "onboarding") {
+    return <Onboarding isGuest={auth?.isGuest} onComplete={handleOnboardingComplete} onRegister={(email) => setAuth({ email, isGuest: false })} />;
+  }
+
+  if (screen === "settings") {
     return (
-      <Onboarding
-        isGuest={auth?.isGuest}
-        onComplete={handleOnboardingComplete}
-        onRegister={(email) => setAuth({ email, isGuest: false })}
-      />
+      <Settings profile={profile} onChange={saveProfile} onBack={() => setScreen("home")} onSignOut={handleSignOut} onClearData={handleClearData} />
     );
   }
 
-  const roster = DRAGON_SPECIES.filter((d) => profile.dragonRoster.includes(d.key));
-
   return (
-    <div className="app-shell animate__animated animate__fadeIn">
-      <div className="max-w-lg mx-auto px-6 py-10 space-y-6" style={{ position: "relative" }}>
-        <div className="flex items-center gap-4">
-          <div className="rounded-2xl flex items-center justify-center card-surface" style={{ width: 56, height: 56, backgroundColor: "var(--ember-bg)", fontSize: "2rem" }}>
-            {profile.avatar}
-          </div>
-          <div>
-            <h1 className="font-heading" style={{ fontWeight: 800, fontSize: "1.5rem", color: "var(--foreground)" }}>
-              {profile.name ? `Welcome back, ${profile.name}` : "Welcome back"}
-            </h1>
-            <p style={{ fontSize: "0.9rem", color: "var(--muted-foreground)" }}>
-              {auth?.isGuest ? "Browsing as guest" : auth?.email}
-            </p>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border overflow-hidden card-surface" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
-          <div className="accent-bar" />
-          <div className="p-5">
-            <h2 className="font-heading" style={{ fontWeight: 700, marginBottom: 12, color: "var(--foreground)" }}>Your roster</h2>
-            {roster.length === 0 ? (
-              <p style={{ fontSize: "0.9rem", color: "var(--muted-foreground)" }}>No dragons added yet.</p>
-            ) : (
-              <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
-                {roster.map((d) => (
-                  <div key={d.key} className="rounded-xl p-3 border card-surface" style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border)" }}>
-                    <div className="rounded-lg" style={{ width: 48, height: 48, marginBottom: 8, overflow: "hidden" }}>
-                      <img src={d.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                    </div>
-                    <p className="font-heading" style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--foreground)" }}>{d.name}</p>
-                    <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>{d.represents}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <p style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>
-          This is a placeholder home screen — logging a sighting comes next.
-        </p>
-      </div>
-    </div>
+    <Home
+      profile={profile}
+      sightings={sightings}
+      onLog={handleLog}
+      onUpdateSighting={handleUpdateSighting}
+      onOpenSettings={() => setScreen("settings")}
+      accountLabel={auth?.isGuest || !auth?.email ? getLocalJournalLabel() : auth.email}
+    />
   );
 }
 

@@ -48,10 +48,30 @@ export const SUPPORT_OPTIONS = [
   { key: "time", emoji: "⏳", label: "Extra time to process" },
 ] as const;
 
+export const PRONOUN_OPTIONS = ["she/her", "he/him", "they/them", "she/they", "he/they", "it/its", "any pronouns", "prefer not to say"] as const;
+
+export const AVATARS = ["🐉", "🐲", "🥚", "🦎", "🔥", "❄️", "⭐", "🌙", "🍃", "🌊", "🌵", "🌫️"];
+
+export const CONTEXT_TAGS = [
+  { key: "home", emoji: "🏠", label: "Home" },
+  { key: "work", emoji: "💼", label: "Work/school" },
+  { key: "social", emoji: "👥", label: "Social" },
+  { key: "out", emoji: "🚌", label: "Out and about" },
+] as const;
+
+export interface Sighting {
+  id: string;
+  dragonKey: string;
+  context: string[];
+  note: string;
+  timestamp: number;
+}
+
 export interface ProfileData {
   name: string;
   pronoun: string;
   avatar: string;
+  avatarPhoto: string;
   sensory: string[];
   support: string[];
   dragonRoster: string[];
@@ -62,6 +82,7 @@ export const DEFAULT_PROFILE: ProfileData = {
   name: "",
   pronoun: "",
   avatar: "🐉",
+  avatarPhoto: "",
   sensory: [],
   support: [],
   dragonRoster: [],
