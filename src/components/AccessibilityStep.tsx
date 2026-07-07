@@ -80,57 +80,61 @@ export function AccessibilityStep({ settings, onChange }: Props) {
   const update = (patch: Partial<A11ySettings>) => onChange({ ...settings, ...patch });
 
   return (
-    <div className="space-y-5">
-      <OptionGroup
-        label="Text size"
-        value={settings.fontSize}
-        onChange={(v) => update({ fontSize: v })}
-        options={[
-          { value: "normal", label: "Normal" },
-          { value: "large", label: "Large" },
-          { value: "xlarge", label: "Extra large" },
-        ]}
-      />
+    <div className="a11y-container">
+      <div className="a11y-grid">
+        <div className="space-y-5">
+          <OptionGroup
+            label="Text size"
+            value={settings.fontSize}
+            onChange={(v) => update({ fontSize: v })}
+            options={[
+              { value: "normal", label: "Normal" },
+              { value: "large", label: "Large" },
+              { value: "xlarge", label: "Extra large" },
+            ]}
+          />
 
-      <OptionGroup
-        label="Font"
-        value={settings.font}
-        onChange={(v) => update({ font: v })}
-        options={[
-          { value: "standard", label: "Standard" },
-          { value: "readable", label: "Extra readable", hint: "Wider letter spacing" },
-        ]}
-      />
+          <OptionGroup
+            label="Font"
+            value={settings.font}
+            onChange={(v) => update({ font: v })}
+            options={[
+              { value: "standard", label: "Standard" },
+              { value: "readable", label: "Extra readable", hint: "Wider letter spacing" },
+            ]}
+          />
 
-      <OptionGroup
-        label="Line spacing"
-        value={settings.lineSpacing}
-        onChange={(v) => update({ lineSpacing: v })}
-        options={[
-          { value: "normal", label: "Normal" },
-          { value: "spacious", label: "Spacious" },
-        ]}
-      />
+          <OptionGroup
+            label="Line spacing"
+            value={settings.lineSpacing}
+            onChange={(v) => update({ lineSpacing: v })}
+            options={[
+              { value: "normal", label: "Normal" },
+              { value: "spacious", label: "Spacious" },
+            ]}
+          />
+        </div>
 
-      <div className="space-y-3">
-        <ToggleRow
-          label="Reduce motion"
-          description="Turns off animations, like the fade-ins you're seeing right now"
-          value={settings.reduceMotion}
-          onChange={(v) => update({ reduceMotion: v })}
-        />
-        <ToggleRow
-          label="High contrast"
-          description="Stronger borders and darker text for better visibility"
-          value={settings.highContrast}
-          onChange={(v) => update({ highContrast: v })}
-        />
-        <ToggleRow
-          label="Dark mode"
-          description="Switch to a darker color palette"
-          value={settings.darkMode}
-          onChange={(v) => update({ darkMode: v })}
-        />
+        <div className="space-y-3">
+          <ToggleRow
+            label="Reduce motion"
+            description="Turns off animations, like the fade-ins you're seeing right now"
+            value={settings.reduceMotion}
+            onChange={(v) => update({ reduceMotion: v })}
+          />
+          <ToggleRow
+            label="High contrast"
+            description="Stronger borders and darker text for better visibility"
+            value={settings.highContrast}
+            onChange={(v) => update({ highContrast: v })}
+          />
+          <ToggleRow
+            label="Dark mode"
+            description="Switch to a darker color palette"
+            value={settings.darkMode}
+            onChange={(v) => update({ darkMode: v })}
+          />
+        </div>
       </div>
     </div>
   );

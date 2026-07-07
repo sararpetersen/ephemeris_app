@@ -4,10 +4,40 @@ import { Onboarding } from "./components/Onboarding";
 import { Home } from "./components/Home";
 import { Settings } from "./components/Settings";
 import { applyA11y } from "./utils/applyA11y";
+import { getAccounts } from "./utils/accounts";
 import { DEFAULT_PROFILE, type ProfileData, type Sighting } from "./types";
 
 type Stage = "auth" | "onboarding" | "app";
 type Screen = "home" | "settings";
+
+function loadAuth(): AuthState | null {
+  try {
+    const raw = localStorage.getItem("ephemeris-auth");
+    if (raw) return JSON.parse(raw) as AuthState;
+  } catch {
+    // fall through to recovery below
+  }
+  // Legacy sessions (created before auth identity was persisted) have no
+  // "ephemeris-auth" entry. This app only ever stores accounts on this one
+  // device, so if there's exactly one registered account, it must be this
+  // profile's owner.
+  const accounts = getAccounts();
+  const keys = Object.keys(accounts);
+  if (keys.length === 1) {
+    const recovered: AuthState = { email: keys[0], isGuest: false };
+    saveAuth(recovered);
+    return recovered;
+  }
+  return null;
+}
+
+function saveAuth(state: AuthState | null) {
+  if (state) {
+    localStorage.setItem("ephemeris-auth", JSON.stringify(state));
+  } else {
+    localStorage.removeItem("ephemeris-auth");
+  }
+}
 
 function loadProfile(): ProfileData | null {
   try {
@@ -68,9 +98,16 @@ function App() {
   const [profile, setProfile] = useState<ProfileData>(DEFAULT_PROFILE);
   const [sightings, setSightings] = useState<Sighting[]>([]);
 
+  const updateAuth = (state: AuthState | null) => {
+    saveAuth(state);
+    setAuth(state);
+  };
+
   useEffect(() => {
+    if (localStorage.getItem("ephemeris-signed-out") === "1") return;
     const existing = loadProfile();
     if (existing) {
+      setAuth(loadAuth());
       setProfile(existing);
       setSightings(loadSightings());
       applyA11y(existing.a11y);
@@ -79,7 +116,8 @@ function App() {
   }, []);
 
   const handleAuth = (state: AuthState) => {
-    setAuth(state);
+    localStorage.removeItem("ephemeris-signed-out");
+    updateAuth(state);
     const existing = loadProfile();
     if (existing) {
       setProfile(existing);
@@ -119,17 +157,26 @@ function App() {
   };
 
   const handleSignOut = () => {
-    setAuth(null);
+    localStorage.setItem("ephemeris-signed-out", "1");
+    updateAuth(null);
     setScreen("home");
     setStage("auth");
+  };
+
+  const handleImportData = (p: ProfileData, s: Sighting[]) => {
+    saveProfile(p);
+    setSightings(s);
+    localStorage.setItem("ephemeris-sightings", JSON.stringify(s));
   };
 
   const handleClearData = () => {
     localStorage.removeItem("ephemeris-profile");
     localStorage.removeItem("ephemeris-sightings");
+    localStorage.removeItem("ephemeris-onboarding-draft");
+    localStorage.removeItem("ephemeris-signed-out");
     setProfile(DEFAULT_PROFILE);
     setSightings([]);
-    setAuth(null);
+    updateAuth(null);
     setScreen("home");
     setStage("auth");
   };
@@ -139,12 +186,23 @@ function App() {
   }
 
   if (stage === "onboarding") {
-    return <Onboarding isGuest={auth?.isGuest} onComplete={handleOnboardingComplete} onRegister={(email) => setAuth({ email, isGuest: false })} />;
+    return <Onboarding isGuest={auth?.isGuest} onComplete={handleOnboardingComplete} onRegister={(email) => updateAuth({ email, isGuest: false })} />;
   }
 
   if (screen === "settings") {
     return (
-      <Settings profile={profile} onChange={saveProfile} onBack={() => setScreen("home")} onSignOut={handleSignOut} onClearData={handleClearData} />
+      <Settings
+        profile={profile}
+        sightings={sightings}
+        onChange={saveProfile}
+        onBack={() => setScreen("home")}
+        onSignOut={handleSignOut}
+        onClearData={handleClearData}
+        isGuest={auth?.isGuest || !auth?.email}
+        auth={auth ?? { email: "", isGuest: true }}
+        onSetAuth={updateAuth}
+        onImportData={handleImportData}
+      />
     );
   }
 

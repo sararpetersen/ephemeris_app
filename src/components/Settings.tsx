@@ -1,22 +1,45 @@
-import { useState, type ReactNode } from "react";
-import { ArrowLeft, Check } from "lucide-react";
+import { useRef, useState, type ReactNode } from "react";
+import { ArrowLeft, Check, Download, Upload } from "lucide-react";
 import { AccessibilityStep } from "./AccessibilityStep";
 import { applyA11y } from "../utils/applyA11y";
-import { AVATARS, DRAGON_SPECIES, PRONOUN_OPTIONS, type ProfileData } from "../types";
+import { hashPassword } from "../utils/crypto";
+import { getAccounts, saveAccounts } from "../utils/accounts";
+import { useInView } from "../hooks/useInView";
+import { revealClass, revealStyle } from "../utils/reveal";
+import { type AuthState } from "./AuthPage";
+import { AVATARS, DRAGON_SPECIES, PRONOUN_OPTIONS, type ProfileData, type Sighting } from "../types";
+
+const APP_VERSION = "0.1.0";
 
 interface Props {
   profile: ProfileData;
+  sightings: Sighting[];
   onChange: (p: ProfileData) => void;
   onBack: () => void;
   onSignOut: () => void;
   onClearData: () => void;
+  isGuest: boolean;
+  auth: AuthState;
+  onSetAuth: (auth: AuthState) => void;
+  onImportData: (profile: ProfileData, sightings: Sighting[]) => void;
 }
 
-function Section({ title, children, className = "" }: { title: string; children: ReactNode; className?: string }) {
+function Section({
+  title,
+  children,
+  className = "",
+}: {
+  title: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  const { ref, inView } = useInView<HTMLDivElement>();
+
   return (
     <div
-      className={`settings-section ${className} rounded-2xl border overflow-hidden card-surface`}
-      style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
+      ref={ref}
+      className={`settings-section ${className} rounded-2xl border card-surface ${revealClass(inView)}`}
+      style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", ...revealStyle() }}
     >
       <div className="p-5 space-y-4">
         <h2 className="font-heading" style={{ fontWeight: 700, color: "var(--foreground)" }}>
@@ -28,10 +51,24 @@ function Section({ title, children, className = "" }: { title: string; children:
   );
 }
 
-export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: Props) {
+export function Settings({ profile, sightings, onChange, onBack, onSignOut, onClearData, isGuest, auth, onSetAuth, onImportData }: Props) {
   const [draft, setDraft] = useState<ProfileData>(profile);
   const [confirmClear, setConfirmClear] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+
+  const [credOpen, setCredOpen] = useState(false);
+  const [credEmail, setCredEmail] = useState(auth.email);
+  const [credPassword, setCredPassword] = useState("");
+  const [credCurrentPassword, setCredCurrentPassword] = useState("");
+  const [credError, setCredError] = useState("");
+  const [credSaved, setCredSaved] = useState(false);
+
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPassword, setGuestPassword] = useState("");
+  const [guestError, setGuestError] = useState("");
+
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importError, setImportError] = useState("");
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(profile);
 
@@ -63,8 +100,88 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
     onBack();
   };
 
+  const registerGuest = async () => {
+    setGuestError("");
+    if (!guestEmail.trim()) {
+      setGuestError("Enter an email address.");
+      return;
+    }
+    if (guestPassword.length < 6) {
+      setGuestError("Password must be at least 6 characters.");
+      return;
+    }
+    const accounts = getAccounts();
+    const key = guestEmail.trim().toLowerCase();
+    if (accounts[key]) {
+      setGuestError("An account with that email already exists.");
+      return;
+    }
+    accounts[key] = { passwordHash: await hashPassword(guestPassword) };
+    saveAccounts(accounts);
+    onSetAuth({ email: key, isGuest: false });
+    setGuestEmail("");
+    setGuestPassword("");
+  };
+
+  const updateCredentials = async () => {
+    setCredError("");
+    const accounts = getAccounts();
+    const currentKey = auth.email.toLowerCase();
+    const stored = accounts[currentKey];
+    if (!stored || stored.passwordHash !== (await hashPassword(credCurrentPassword))) {
+      setCredError("Current password is incorrect.");
+      return;
+    }
+    const newKey = credEmail.trim().toLowerCase();
+    if (!newKey) {
+      setCredError("Email can't be empty.");
+      return;
+    }
+    if (newKey !== currentKey && accounts[newKey]) {
+      setCredError("That email is already in use.");
+      return;
+    }
+    const newPasswordHash = credPassword ? await hashPassword(credPassword) : stored.passwordHash;
+    delete accounts[currentKey];
+    accounts[newKey] = { passwordHash: newPasswordHash };
+    saveAccounts(accounts);
+    onSetAuth({ email: newKey, isGuest: false });
+    setCredPassword("");
+    setCredCurrentPassword("");
+    setCredSaved(true);
+    setTimeout(() => setCredSaved(false), 2500);
+  };
+
+  const exportData = () => {
+    const blob = new Blob([JSON.stringify({ profile, sightings }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ephemeris-journal.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = (file: File | undefined) => {
+    if (!file) return;
+    setImportError("");
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(typeof reader.result === "string" ? reader.result : "");
+        if (!parsed || typeof parsed !== "object" || !parsed.profile) {
+          throw new Error("Missing profile data");
+        }
+        onImportData(parsed.profile as ProfileData, Array.isArray(parsed.sightings) ? (parsed.sightings as Sighting[]) : []);
+      } catch {
+        setImportError("That file doesn't look like an Ephemeris export.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
-    <div className="app-shell animate__animated animate__fadeIn">
+    <div className="app-shell">
       <div className="settings-page">
         {/* Sticky header */}
         <div className="settings-header sticky-bar flex items-center gap-2">
@@ -79,6 +196,151 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
         <div className="settings-content">
           {/* Profile */}
           <Section title="Profile" className="settings-profile-section">
+            <>
+            {isGuest && (
+              <p
+                className="rounded-xl px-4 py-2.5"
+                style={{ backgroundColor: "var(--glass-bg)", color: "var(--glass-text)", fontSize: "0.82rem", fontWeight: 600 }}
+              >
+                Browsing as guest – your data stays on this device only.
+              </p>
+            )}
+
+            {isGuest ? (
+              <div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border)" }}>
+                <button
+                  onClick={() => {
+                    setCredOpen((o) => !o);
+                    setGuestError("");
+                  }}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left row-hover"
+                >
+                  <div>
+                    <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--foreground)" }}>Create an account</p>
+                    <p style={{ fontSize: "0.8rem", color: "var(--muted-foreground)" }}>Keep this data if you switch devices</p>
+                  </div>
+                  <span style={{ fontSize: "1.2rem", lineHeight: 1, color: "var(--muted-foreground)" }}>{credOpen ? "−" : "+"}</span>
+                </button>
+                {credOpen && (
+                  <div className="px-4 pb-4 space-y-2.5 border-t" style={{ borderColor: "var(--border)", paddingTop: 12 }}>
+                    <input
+                      type="email"
+                      value={guestEmail}
+                      onChange={(e) => setGuestEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      aria-label="Email"
+                      autoComplete="email"
+                      className="w-full rounded-xl px-4 py-2.5 border outline-none"
+                      style={{
+                        backgroundColor: "var(--input-background)",
+                        borderColor: "var(--border)",
+                        color: "var(--foreground)",
+                        fontSize: "0.9rem",
+                      }}
+                    />
+                    <input
+                      type="password"
+                      value={guestPassword}
+                      onChange={(e) => setGuestPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && registerGuest()}
+                      placeholder="Password (6+ characters)"
+                      aria-label="Password"
+                      autoComplete="new-password"
+                      className="w-full rounded-xl px-4 py-2.5 border outline-none"
+                      style={{
+                        backgroundColor: "var(--input-background)",
+                        borderColor: "var(--border)",
+                        color: "var(--foreground)",
+                        fontSize: "0.9rem",
+                      }}
+                    />
+                    {guestError && <p style={{ color: "var(--destructive)", fontSize: "0.82rem", fontWeight: 600 }}>{guestError}</p>}
+                    <button
+                      onClick={registerGuest}
+                      className="w-full rounded-xl py-3 btn-primary"
+                      style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)", fontWeight: 700, fontSize: "0.95rem" }}
+                    >
+                      Create account
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border)" }}>
+                <button
+                  onClick={() => {
+                    setCredOpen((o) => !o);
+                    setCredError("");
+                  }}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left row-hover"
+                >
+                  <div>
+                    <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--foreground)" }}>Email & password</p>
+                    <p style={{ fontSize: "0.8rem", color: "var(--muted-foreground)" }}>{auth.email}</p>
+                  </div>
+                  <span style={{ fontSize: "1.2rem", lineHeight: 1, color: "var(--muted-foreground)" }}>{credOpen ? "−" : "+"}</span>
+                </button>
+                {credOpen && (
+                  <div className="px-4 pb-4 space-y-2.5 border-t" style={{ borderColor: "var(--border)", paddingTop: 12 }}>
+                    <input
+                      type="email"
+                      value={credEmail}
+                      onChange={(e) => setCredEmail(e.target.value)}
+                      placeholder="Email"
+                      aria-label="New email"
+                      autoComplete="email"
+                      className="w-full rounded-xl px-4 py-2.5 border outline-none"
+                      style={{
+                        backgroundColor: "var(--input-background)",
+                        borderColor: "var(--border)",
+                        color: "var(--foreground)",
+                        fontSize: "0.9rem",
+                      }}
+                    />
+                    <input
+                      type="password"
+                      value={credPassword}
+                      onChange={(e) => setCredPassword(e.target.value)}
+                      placeholder="New password (leave blank to keep current)"
+                      aria-label="New password"
+                      autoComplete="new-password"
+                      className="w-full rounded-xl px-4 py-2.5 border outline-none"
+                      style={{
+                        backgroundColor: "var(--input-background)",
+                        borderColor: "var(--border)",
+                        color: "var(--foreground)",
+                        fontSize: "0.9rem",
+                      }}
+                    />
+                    <input
+                      type="password"
+                      value={credCurrentPassword}
+                      onChange={(e) => setCredCurrentPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && updateCredentials()}
+                      placeholder="Current password"
+                      aria-label="Current password"
+                      autoComplete="current-password"
+                      className="w-full rounded-xl px-4 py-2.5 border outline-none"
+                      style={{
+                        backgroundColor: "var(--input-background)",
+                        borderColor: "var(--border)",
+                        color: "var(--foreground)",
+                        fontSize: "0.9rem",
+                      }}
+                    />
+                    {credError && <p style={{ color: "var(--destructive)", fontSize: "0.82rem", fontWeight: 600 }}>{credError}</p>}
+                    <button
+                      onClick={updateCredentials}
+                      className="w-full rounded-xl py-3 btn-primary"
+                      style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)", fontWeight: 700, fontSize: "0.95rem" }}
+                    >
+                      {credSaved ? "Updated" : "Update"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div>
               <label style={{ display: "block", fontSize: "0.88rem", fontWeight: 600, marginBottom: 6, color: "var(--foreground)" }}>Name</label>
               <input
@@ -118,8 +380,16 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
               <p style={{ fontSize: "0.88rem", fontWeight: 600, marginBottom: 8, color: "var(--foreground)" }}>Profile image</p>
               <div className="flex items-center gap-3 mb-3">
                 <div
-                  className="rounded-2xl flex items-center justify-center"
-                  style={{ width: 72, height: 72, backgroundColor: "var(--surface-1)", fontSize: "2.25rem", overflow: "hidden", flexShrink: 0 }}
+                  className="rounded-2xl flex items-center justify-center border"
+                  style={{
+                    width: 72,
+                    height: 72,
+                    backgroundColor: "var(--surface-1)",
+                    borderColor: "var(--border)",
+                    fontSize: "2.25rem",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                  }}
                 >
                   {draft.avatarPhoto ? (
                     <img src={draft.avatarPhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -132,7 +402,7 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
                     className="rounded-xl px-4 py-2.5 border-2 option-card"
                     style={{
                       backgroundColor: "var(--surface-1)",
-                      borderColor: "transparent",
+                      borderColor: "var(--border)",
                       color: "var(--foreground)",
                       fontWeight: 700,
                       fontSize: "0.88rem",
@@ -153,7 +423,7 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
                       className="rounded-xl px-4 py-2.5 border-2 option-card"
                       style={{
                         backgroundColor: "var(--surface-1)",
-                        borderColor: "transparent",
+                        borderColor: "var(--border)",
                         color: "var(--foreground)",
                         fontWeight: 700,
                         fontSize: "0.88rem",
@@ -183,48 +453,51 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
                 ))}
               </div>
             </div>
+            </>
           </Section>
 
           {/* Roster */}
           <Section title="Your roster" className="settings-roster-section">
-            <p style={{ fontSize: "0.88rem", marginTop: -8, color: "var(--muted-foreground)" }}>
-              Choose the dragons you want to see more often in the mood checker.
-            </p>
-            <div className="settings-roster-grid">
-              {DRAGON_SPECIES.map((d) => {
-                const active = draft.dragonRoster.includes(d.key);
-                return (
-                  <button
-                    key={d.key}
-                    onClick={() => toggleDragon(d.key)}
-                    className="settings-roster-card flex items-center gap-3 rounded-xl px-4 py-3 border-2 text-left option-card"
-                    style={{
-                      backgroundColor: active ? "var(--ember-bg)" : "var(--surface-1)",
-                      borderColor: active ? "var(--primary)" : "transparent",
-                    }}
-                    aria-pressed={active}
-                  >
-                    <div className="rounded-lg shrink-0" style={{ width: 44, height: 44, overflow: "hidden" }}>
-                      <img src={d.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-heading" style={{ fontWeight: active ? 700 : 600, fontSize: "0.9rem", color: "var(--foreground)" }}>
-                        {d.name}
-                      </p>
-                      <p style={{ fontSize: "0.78rem", color: "var(--muted-foreground)" }}>{d.represents}</p>
-                    </div>
-                    {active && (
-                      <div
-                        className="rounded-full flex items-center justify-center shrink-0"
-                        style={{ width: 22, height: 22, backgroundColor: "var(--primary)" }}
+            <>
+                <p style={{ fontSize: "0.88rem", marginTop: -8, color: "var(--muted-foreground)" }}>
+                  Choose the dragons you want to see more often in the mood checker.
+                </p>
+                <div className="settings-roster-grid">
+                  {DRAGON_SPECIES.map((d) => {
+                    const active = draft.dragonRoster.includes(d.key);
+                    return (
+                      <button
+                        key={d.key}
+                        onClick={() => toggleDragon(d.key)}
+                        className="settings-roster-card flex items-center gap-3 rounded-xl px-4 py-3 border-2 text-left option-card"
+                        style={{
+                          backgroundColor: active ? "var(--ember-bg)" : "var(--surface-1)",
+                          borderColor: active ? "var(--primary)" : "transparent",
+                        }}
+                        aria-pressed={active}
                       >
-                        <Check size={13} color="white" />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+                        <div className="rounded-lg shrink-0" style={{ width: 44, height: 44, overflow: "hidden" }}>
+                          <img src={d.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-heading" style={{ fontWeight: active ? 700 : 600, fontSize: "0.9rem", color: "var(--foreground)" }}>
+                            {d.name}
+                          </p>
+                          <p style={{ fontSize: "0.78rem", color: "var(--muted-foreground)" }}>{d.represents}</p>
+                        </div>
+                        {active && (
+                          <div
+                            className="rounded-full flex items-center justify-center shrink-0"
+                            style={{ width: 22, height: 22, backgroundColor: "var(--primary)" }}
+                          >
+                            <Check size={13} color="white" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+            </>
           </Section>
 
           {/* Accessibility */}
@@ -244,14 +517,96 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
             </p>
           </Section>
 
+          {/* About & privacy */}
+          <Section title="About & privacy" className="settings-privacy-section">
+            <p style={{ fontSize: "0.88rem", lineHeight: 1.6, color: "var(--muted-foreground)", fontWeight: 300 }}>
+              Your journal <strong style={{ fontWeight: 800 }}>never leaves your device</strong>. Ephemeris stores your profile, sightings, and
+              settings only in this browser's{" "}
+              <code
+                className="tooltip-target"
+                tabIndex={0}
+                data-tooltip="A small storage space built into your browser, tied to this site only. It stays on your device and isn't sent anywhere."
+                style={{ color: "var(--primary)", fontWeight: 300, fontSize: "0.85rem" }}
+              >
+                localStorage
+              </code>{" "}
+              –
+              there's no server, no analytics, no tracking, and nothing is shared with third parties. Deleting your data from this page removes it
+              completely and for good.
+            </p>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <a
+                href="https://web-ephemeris.netlify.app/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="link-hover"
+                style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--primary)" }}
+              >
+                Read the full privacy policy →
+              </a>
+              <span style={{ fontSize: "0.78rem", color: "var(--muted-foreground)" }}>Ephemeris v{APP_VERSION}</span>
+            </div>
+            <div style={{ marginTop: 16, marginBottom: 8, borderTop: "1px solid var(--border)", opacity: 0.6 }} />
+            <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)" }}>
+              <span style={{ fontWeight: 800 }}>Official website:</span>{" "}
+              <a
+                href="https://web-ephemeris.netlify.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="link-hover"
+                style={{ color: "var(--muted-foreground)", textDecoration: "underline", fontWeight: 300 }}
+              >
+                web-ephemeris.netlify.app
+              </a>
+            </p>
+          </Section>
+
           {/* Account */}
           <Section title="Account & data" className="settings-account-section">
+            <div className="settings-danger-actions">
+              <button
+                onClick={exportData}
+                className="flex-1 rounded-xl py-2.5 border-2 option-card flex items-center justify-center gap-2"
+                style={{
+                  backgroundColor: "var(--surface-1)",
+                  borderColor: "var(--border)",
+                  color: "var(--foreground)",
+                  fontWeight: 600,
+                  fontSize: "0.88rem",
+                }}
+              >
+                <Download size={15} /> Export data
+              </button>
+              <button
+                onClick={() => importInputRef.current?.click()}
+                className="flex-1 rounded-xl py-2.5 border-2 option-card flex items-center justify-center gap-2"
+                style={{
+                  backgroundColor: "var(--surface-1)",
+                  borderColor: "var(--border)",
+                  color: "var(--foreground)",
+                  fontWeight: 600,
+                  fontSize: "0.88rem",
+                }}
+              >
+                <Upload size={15} /> Import data
+              </button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept="application/json"
+                className="sr-only"
+                aria-label="Import journal data"
+                onChange={(e) => importData(e.target.files?.[0])}
+              />
+            </div>
+            {importError && <p style={{ color: "var(--destructive)", fontSize: "0.82rem", fontWeight: 600 }}>{importError}</p>}
+
             <button
               onClick={onSignOut}
               className="w-full rounded-xl py-3 border-2 option-card"
               style={{
                 backgroundColor: "var(--surface-1)",
-                borderColor: "transparent",
+                borderColor: "var(--border)",
                 color: "var(--foreground)",
                 fontWeight: 600,
                 fontSize: "0.92rem",

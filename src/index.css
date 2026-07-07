@@ -141,10 +141,12 @@ textarea:focus-visible,
   background-color: var(--surface-2) !important;
 }
 
-.dragon-tooltip {
+.dragon-tooltip,
+.tooltip-target {
   position: relative;
 }
-.dragon-tooltip::after {
+.dragon-tooltip::after,
+.tooltip-target::after {
   content: attr(data-tooltip);
   position: absolute;
   left: 50%;
@@ -167,7 +169,9 @@ textarea:focus-visible,
   z-index: 30;
 }
 .dragon-tooltip:hover::after,
-.dragon-tooltip:focus-visible::after {
+.dragon-tooltip:focus-visible::after,
+.tooltip-target:hover::after,
+.tooltip-target:focus-visible::after {
   opacity: 1;
   transform: translate(-50%, 0);
 }
@@ -262,6 +266,20 @@ textarea:focus-visible {
 
 .card-surface {
   border: 1.5px solid var(--border);
+}
+
+.reveal-pending {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce), (forced-colors: active) {
+  .reveal-pending {
+    opacity: 1;
+  }
+}
+
+:root.reduce-motion .reveal-pending {
+  opacity: 1;
 }
 
 .brand-wordmark {
@@ -422,6 +440,7 @@ textarea:focus-visible {
     "profile"
     "roster"
     "comfort"
+    "privacy"
     "account";
   margin-top: 1.5rem;
   justify-items: center;
@@ -452,6 +471,11 @@ textarea:focus-visible {
   max-width: 720px;
 }
 
+.settings-privacy-section {
+  grid-area: privacy;
+  max-width: 720px;
+}
+
 .settings-roster-grid {
   display: grid;
   gap: 0.5rem;
@@ -478,6 +502,22 @@ textarea:focus-visible {
   min-width: min(100%, 11rem);
 }
 
+.a11y-container {
+  container-type: inline-size;
+}
+
+.a11y-grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@container (min-width: 560px) {
+  .a11y-grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
 @media (min-width: 768px) {
   .settings-page {
     width: min(100%, 1024px);
@@ -489,7 +529,8 @@ textarea:focus-visible {
     align-items: start;
     grid-template-areas:
       "profile roster"
-      "comfort roster"
+      "comfort comfort"
+      "privacy privacy"
       "account account";
     grid-template-columns: minmax(320px, 480px) minmax(320px, 1fr);
     justify-content: center;
@@ -530,7 +571,8 @@ textarea:focus-visible {
   .settings-profile-section,
   .settings-roster-section,
   .settings-comfort-section,
-  .settings-account-section {
+  .settings-account-section,
+  .settings-privacy-section {
     max-width: none;
   }
 

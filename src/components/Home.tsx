@@ -1,6 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Check, Settings as SettingsIcon } from "lucide-react";
 import { CONTEXT_TAGS, DRAGON_SPECIES, type ProfileData, type Sighting } from "../types";
+import { useInView } from "../hooks/useInView";
+import { revealClass, revealStyle } from "../utils/reveal";
 
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -43,6 +45,24 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
   const [tags, setTags] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [justLogged, setJustLogged] = useState(false);
+  const [, forceTick] = useState(0);
+  const header = useInView<HTMLDivElement>();
+  const sightingCard = useInView<HTMLDivElement>();
+  const divider = useInView<HTMLDivElement>();
+  const journalCard = useInView<HTMLDivElement>();
+
+  useEffect(() => {
+    const recheck = () => forceTick((n) => n + 1);
+    const interval = setInterval(recheck, 60_000);
+    document.addEventListener("visibilitychange", recheck);
+    window.addEventListener("focus", recheck);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", recheck);
+      window.removeEventListener("focus", recheck);
+    };
+  }, []);
+
   const latestToday = sightings
     .filter((s) => isToday(s.timestamp))
     .sort((a, b) => b.timestamp - a.timestamp)[0];
@@ -78,10 +98,14 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
   };
 
   return (
-    <div className="app-shell animate__animated animate__fadeIn">
+    <div className="app-shell">
       <div className="max-w-lg mx-auto px-6 py-8 space-y-6" style={{ position: "relative" }}>
         {/* Header */}
-        <div className="flex items-center gap-4">
+        <div
+          ref={header.ref}
+          className={`flex items-center gap-4 ${revealClass(header.inView, "fadeInDown")}`}
+          style={revealStyle()}
+        >
           <div
             className="rounded-2xl flex items-center justify-center card-surface"
             style={{ width: 56, height: 56, backgroundColor: "var(--ember-bg)", fontSize: "2rem", overflow: "hidden" }}
@@ -104,7 +128,11 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
         </div>
 
         {/* Log a sighting */}
-        <div className="rounded-2xl border overflow-hidden card-surface" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+        <div
+          ref={sightingCard.ref}
+          className={`rounded-2xl border overflow-hidden card-surface ${revealClass(sightingCard.inView)}`}
+          style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", ...revealStyle() }}
+        >
           <div className="accent-bar" />
           <div className="p-5 space-y-4">
             <div>
@@ -234,12 +262,18 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
         </div>
 
         {/* Ornamental divider */}
-        <div aria-hidden="true" style={{ textAlign: "center", color: "var(--muted-foreground)", opacity: 0.55, fontSize: "1.1rem", lineHeight: 1 }}>
-          ❦
+        <div ref={divider.ref} aria-hidden="true" className={revealClass(divider.inView, "fadeIn")} style={revealStyle()}>
+          <div style={{ textAlign: "center", color: "var(--muted-foreground)", opacity: 0.55, fontSize: "1.1rem", lineHeight: 1 }}>
+            ❦
+          </div>
         </div>
 
         {/* Field notes — styled like a journal page */}
-        <div className="rounded-2xl border overflow-hidden card-surface" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+        <div
+          ref={journalCard.ref}
+          className={`rounded-2xl border overflow-hidden card-surface ${revealClass(journalCard.inView)}`}
+          style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", ...revealStyle() }}
+        >
           <div className="journal-page py-5 pr-5">
             <div className="journal-heading-row">
               <h2 className="font-heading" style={{ fontWeight: 700, color: "var(--foreground)" }}>
@@ -264,7 +298,10 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
                       .filter(Boolean)
                       .map((t) => `${t!.emoji} ${t!.label}`);
                     return (
-                      <div key={s.id} className="journal-entry flex items-start gap-3 py-3">
+                      <div
+                        key={s.id}
+                        className="journal-entry flex items-start gap-3 py-3"
+                      >
                         <div className="rounded-lg shrink-0" style={{ width: 44, height: 44, overflow: "hidden" }}>
                           <img src={dragon.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                         </div>

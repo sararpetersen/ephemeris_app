@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { hashPassword } from "../utils/crypto";
+import { getAccounts, saveAccounts } from "../utils/accounts";
 import { applyA11y } from "../utils/applyA11y";
+import { useInView } from "../hooks/useInView";
+import { revealClass, revealStyle } from "../utils/reveal";
 import { AccessibilityStep } from "./AccessibilityStep";
 import {
   AVATARS,
@@ -16,6 +19,27 @@ import {
 } from "../types";
 
 const TOTAL_STEPS = 6;
+const DRAFT_KEY = "ephemeris-onboarding-draft";
+
+interface OnboardingDraft {
+  step: number;
+  name: string;
+  pronoun: string;
+  avatar: string;
+  avatarPhoto: string;
+  sensory: string[];
+  support: string[];
+  dragonRoster: string[];
+  a11y: A11ySettings;
+}
+
+function loadDraft(): OnboardingDraft | null {
+  try {
+    return JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
 
 interface Props {
   onComplete: (profile: ProfileData) => void;
@@ -23,16 +47,38 @@ interface Props {
   onRegister?: (email: string) => void;
 }
 
+function RevealGroup({ children, className = "" }: { children: ReactNode; className?: string }) {
+  const { ref, inView } = useInView<HTMLDivElement>();
+
+  return (
+    <div ref={ref} className={`${className} ${revealClass(inView, "fadeIn")}`} style={{ position: "relative", ...revealStyle() }}>
+      {children}
+    </div>
+  );
+}
+
 export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
-  const [step, setStep] = useState(0);
-  const [name, setName] = useState("");
-  const [pronoun, setPronoun] = useState("");
-  const [avatar, setAvatar] = useState("🐉");
-  const [avatarPhoto, setAvatarPhoto] = useState("");
-  const [sensory, setSensory] = useState<string[]>([]);
-  const [support, setSupport] = useState<string[]>([]);
-  const [dragonRoster, setDragonRoster] = useState<string[]>([]);
-  const [a11y, setA11y] = useState<A11ySettings>(DEFAULT_A11Y);
+  const draft = loadDraft();
+  const [step, setStep] = useState(draft?.step ?? 0);
+  const [name, setName] = useState(draft?.name ?? "");
+  const [pronoun, setPronoun] = useState(draft?.pronoun ?? "");
+  const [avatar, setAvatar] = useState(draft?.avatar ?? "🐉");
+  const [avatarPhoto, setAvatarPhoto] = useState(draft?.avatarPhoto ?? "");
+  const [sensory, setSensory] = useState<string[]>(draft?.sensory ?? []);
+  const [support, setSupport] = useState<string[]>(draft?.support ?? []);
+  const [dragonRoster, setDragonRoster] = useState<string[]>(draft?.dragonRoster ?? []);
+  const [a11y, setA11y] = useState<A11ySettings>(draft?.a11y ?? DEFAULT_A11Y);
+  const avatarPreview = useInView<HTMLDivElement>();
+
+  useEffect(() => {
+    if (draft?.a11y) applyA11y(draft.a11y);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const d: OnboardingDraft = { step, name, pronoun, avatar, avatarPhoto, sensory, support, dragonRoster, a11y };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+  }, [step, name, pronoun, avatar, avatarPhoto, sensory, support, dragonRoster, a11y]);
 
   const [signUpOpen, setSignUpOpen] = useState(false);
   const [signUpEmail, setSignUpEmail] = useState("");
@@ -64,19 +110,13 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
       setSignUpError("Password must be at least 6 characters.");
       return;
     }
-    const accounts: Record<string, { passwordHash: string }> = (() => {
-      try {
-        return JSON.parse(localStorage.getItem("ephemeris-accounts") ?? "{}");
-      } catch {
-        return {};
-      }
-    })();
+    const accounts = getAccounts();
     if (accounts[signUpEmail.toLowerCase()]) {
       setSignUpError("That email is already in use.");
       return;
     }
     accounts[signUpEmail.toLowerCase()] = { passwordHash: await hashPassword(signUpPassword) };
-    localStorage.setItem("ephemeris-accounts", JSON.stringify(accounts));
+    saveAccounts(accounts);
     onRegister?.(signUpEmail.toLowerCase());
     finish();
   };
@@ -93,6 +133,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
       dragonRoster,
       a11y,
     };
+    localStorage.removeItem(DRAFT_KEY);
     onComplete(profile);
   };
 
@@ -100,10 +141,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
     <div className="app-shell flex flex-col">
       {/* Step 0: Welcome */}
       {step === 0 && (
-        <div
-          className="welcome-screen flex-1 flex flex-col items-center justify-center px-8 text-center animate__animated animate__fadeIn"
-          style={{ position: "relative" }}
-        >
+        <RevealGroup className="welcome-screen flex-1 flex flex-col items-center justify-center px-8 text-center">
           <div role="img" aria-label="Ephemeris">
             <img className="brand-wordmark brand-wordmark-light" src="/images/ephemeris_logo.webp" alt="" aria-hidden="true" />
             <img className="brand-wordmark brand-wordmark-dark" src="/images/ephemeris_logo-white.webp" alt="" aria-hidden="true" />
@@ -123,7 +161,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
           >
             Get started
           </button>
-        </div>
+        </RevealGroup>
       )}
 
       {/* Steps 1-6 */}
@@ -162,7 +200,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
           <div className="flex-1 flex flex-col px-6 py-4 max-w-lg mx-auto w-full" style={{ position: "relative" }}>
             {/* Step 1: Name */}
             {step === 1 && (
-              <div className="flex flex-col gap-5 flex-1 animate__animated animate__fadeIn animate__faster">
+              <RevealGroup className="flex flex-col gap-5 flex-1">
                 <div>
                   <h2 className="font-heading" style={{ fontWeight: 800, marginBottom: 8, color: "var(--foreground)" }}>
                     What should we call you?
@@ -198,12 +236,12 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                     </option>
                   ))}
                 </select>
-              </div>
+              </RevealGroup>
             )}
 
             {/* Step 2: Avatar */}
             {step === 2 && (
-              <div className="flex flex-col gap-5 flex-1 animate__animated animate__fadeIn animate__faster">
+              <RevealGroup className="flex flex-col gap-5 flex-1">
                 <div>
                   <h2 className="font-heading" style={{ fontWeight: 800, marginBottom: 8, color: "var(--foreground)" }}>
                     Pick a profile image
@@ -213,8 +251,9 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                   </p>
                 </div>
                 <div
-                  className="rounded-2xl p-4 flex items-center justify-center border card-surface"
-                  style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", fontSize: "4rem", height: 120 }}
+                  ref={avatarPreview.ref}
+                  className={`rounded-2xl p-4 flex items-center justify-center border card-surface ${revealClass(avatarPreview.inView)}`}
+                  style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", fontSize: "4rem", height: 120, ...revealStyle() }}
                 >
                   {avatarPhoto ? (
                     <img src={avatarPhoto} alt="" className="rounded-2xl" style={{ width: 88, height: 88, objectFit: "cover" }} />
@@ -227,7 +266,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                     className="flex-1 rounded-xl py-3 border-2 option-card text-center"
                     style={{
                       backgroundColor: "var(--surface-1)",
-                      borderColor: "transparent",
+                      borderColor: "var(--border)",
                       color: "var(--foreground)",
                       fontWeight: 700,
                       fontSize: "0.9rem",
@@ -248,7 +287,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                       className="rounded-xl px-4 py-3 border-2 option-card"
                       style={{
                         backgroundColor: "var(--surface-1)",
-                        borderColor: "transparent",
+                        borderColor: "var(--border)",
                         color: "var(--foreground)",
                         fontWeight: 700,
                         fontSize: "0.9rem",
@@ -276,12 +315,12 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                     </button>
                   ))}
                 </div>
-              </div>
+              </RevealGroup>
             )}
 
             {/* Step 3: Sensory + support */}
             {step === 3 && (
-              <div className="flex flex-col gap-6 flex-1 animate__animated animate__fadeIn animate__faster">
+              <RevealGroup className="flex flex-col gap-6 flex-1">
                 <div>
                   <h2 className="font-heading" style={{ fontWeight: 800, marginBottom: 8, color: "var(--foreground)" }}>
                     Anything we should know?
@@ -321,12 +360,12 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                     );
                   })}
                 </div>
-              </div>
+              </RevealGroup>
             )}
 
             {/* Step 4: Support preferences */}
             {step === 4 && (
-              <div className="flex flex-col gap-5 flex-1 animate__animated animate__fadeIn animate__faster">
+              <RevealGroup className="flex flex-col gap-5 flex-1">
                 <div>
                   <h2 className="font-heading" style={{ fontWeight: 800, marginBottom: 8, color: "var(--foreground)" }}>
                     What helps you most?
@@ -364,12 +403,12 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                     );
                   })}
                 </div>
-              </div>
+              </RevealGroup>
             )}
 
             {/* Step 5: Build your dragon roster */}
             {step === 5 && (
-              <div className="flex flex-col gap-5 flex-1 animate__animated animate__fadeIn animate__faster">
+              <RevealGroup className="flex flex-col gap-5 flex-1">
                 <div>
                   <h2 className="font-heading" style={{ fontWeight: 800, marginBottom: 8, color: "var(--foreground)" }}>
                     Build your roster
@@ -417,12 +456,12 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                     );
                   })}
                 </div>
-              </div>
+              </RevealGroup>
             )}
 
             {/* Step 6: Accessibility */}
             {step === 6 && (
-              <div className="flex flex-col gap-5 flex-1 animate__animated animate__fadeIn animate__faster">
+              <RevealGroup className="flex flex-col gap-5 flex-1">
                 <div>
                   <h2 className="font-heading" style={{ fontWeight: 800, marginBottom: 8, color: "var(--foreground)" }}>
                     Make it comfortable
@@ -436,7 +475,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                 >
                   Every setting here applies instantly and can be changed again later – nothing is locked in.
                 </p>
-              </div>
+              </RevealGroup>
             )}
 
             {/* Bottom buttons */}
