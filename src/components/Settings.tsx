@@ -308,7 +308,7 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
               className="w-full rounded-2xl py-3.5 btn-primary"
               style={{
                 backgroundColor: dirty ? "var(--primary)" : "var(--surface-2)",
-                color: dirty ? "var(--primary-foreground)" : "var(--muted-foreground)",
+                color: dirty ? "var(--primary-foreground)" : "var(--muted-strong)",
                 fontWeight: 700,
                 fontSize: "1rem",
               }}

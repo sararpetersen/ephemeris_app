@@ -48,6 +48,7 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
     .sort((a, b) => b.timestamp - a.timestamp)[0];
   const latestTodayDragon = latestToday ? DRAGON_SPECIES.find((d) => d.key === latestToday.dragonKey) : undefined;
   const todayLocked = Boolean(latestToday && !activeSightingId);
+  const visibleSightings = activeSightingId ? sightings.filter((s) => s.id !== activeSightingId) : sightings;
 
   const toggleTag = (key: string) => setTags((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
@@ -154,73 +155,81 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
               })}
             </div>
 
-            {activeSightingId && (
-              <div className="space-y-3 animate__animated animate__fadeIn animate__faster">
-                <p
-                  className="rounded-xl px-4 py-3 flex items-center gap-2"
-                  style={{ backgroundColor: "var(--glass-bg)", color: "var(--glass-text)", fontSize: "0.88rem" }}
-                >
-                  <Check size={16} /> Sighting logged. Add details if you want.
-                </p>
-                <div>
-                  <p style={{ fontWeight: 600, fontSize: "0.88rem", marginBottom: 6, color: "var(--foreground)" }}>
-                    Where are you? <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}>(optional)</span>
-                  </p>
-                  <div className="flex gap-2 flex-wrap">
-                    {CONTEXT_TAGS.map((t) => {
-                      const active = tags.includes(t.key);
-                      return (
-                        <button
-                          key={t.key}
-                          onClick={() => toggleTag(t.key)}
-                          className="rounded-xl px-3 py-2 border-2 option-card"
-                          style={{
-                            backgroundColor: active ? "var(--glass-bg)" : "var(--surface-1)",
-                            borderColor: active ? "var(--glass-vivid)" : "transparent",
-                            color: active ? "var(--glass-text)" : "var(--foreground)",
-                            fontWeight: active ? 700 : 500,
-                            fontSize: "0.85rem",
-                          }}
-                          aria-pressed={active}
-                        >
-                          {t.emoji} {t.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <input
-                  type="text"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && saveDetails()}
-                  placeholder="Field note (optional)"
-                  className="w-full rounded-xl px-4 py-3 border outline-none"
-                  style={{
-                    backgroundColor: "var(--input-background)",
-                    borderColor: "var(--border)",
-                    color: "var(--foreground)",
-                    fontSize: "0.92rem",
-                  }}
-                />
-                <button
-                  onClick={saveDetails}
-                  className="w-full rounded-2xl py-3.5 btn-primary"
-                  style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)", fontWeight: 700, fontSize: "1rem" }}
-                >
-                  Save details
-                </button>
+            <div className={`sighting-reveal ${activeSightingId ? "sighting-reveal-open" : ""}`}>
+              <div className="sighting-reveal-inner space-y-3">
+                {activeSightingId && (
+                  <>
+                    <p
+                      className="rounded-xl px-4 py-3 flex items-center gap-2"
+                      style={{ backgroundColor: "var(--glass-bg)", color: "var(--glass-text)", fontSize: "0.88rem" }}
+                    >
+                      <Check size={16} /> Sighting logged. Add details if you want.
+                    </p>
+                    <div>
+                      <p style={{ fontWeight: 600, fontSize: "0.88rem", marginBottom: 6, color: "var(--foreground)" }}>
+                        Where are you? <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}>(optional)</span>
+                      </p>
+                      <div className="flex gap-2 flex-wrap">
+                        {CONTEXT_TAGS.map((t) => {
+                          const active = tags.includes(t.key);
+                          return (
+                            <button
+                              key={t.key}
+                              onClick={() => toggleTag(t.key)}
+                              className="rounded-xl px-3 py-2 border-2 option-card"
+                              style={{
+                                backgroundColor: active ? "var(--glass-bg)" : "var(--surface-1)",
+                                borderColor: active ? "var(--glass-vivid)" : "transparent",
+                                color: active ? "var(--glass-text)" : "var(--foreground)",
+                                fontWeight: active ? 700 : 500,
+                                fontSize: "0.85rem",
+                              }}
+                              aria-pressed={active}
+                            >
+                              {t.emoji} {t.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && saveDetails()}
+                      placeholder="Field note (optional)"
+                      className="w-full rounded-xl px-4 py-3 border outline-none"
+                      style={{
+                        backgroundColor: "var(--input-background)",
+                        borderColor: "var(--border)",
+                        color: "var(--foreground)",
+                        fontSize: "0.92rem",
+                      }}
+                    />
+                    <button
+                      onClick={saveDetails}
+                      className="w-full rounded-2xl py-3.5 btn-primary"
+                      style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)", fontWeight: 700, fontSize: "1rem" }}
+                    >
+                      Save details
+                    </button>
+                  </>
+                )}
               </div>
-            )}
+            </div>
 
-            {justLogged && !activeSightingId && (
-              <p
-                className="rounded-xl px-4 py-3 flex items-center gap-2 animate__animated animate__fadeIn animate__faster"
-                style={{ backgroundColor: "var(--glass-bg)", color: "var(--glass-text)", fontSize: "0.88rem" }}
-              >
-                <Check size={16} /> Recorded in your field journal.
-              </p>
-            )}
+            <div className={`sighting-reveal ${justLogged && !activeSightingId ? "sighting-reveal-open" : ""}`}>
+              <div className="sighting-reveal-inner">
+                {justLogged && !activeSightingId && (
+                  <p
+                    className="rounded-xl px-4 py-3 flex items-center gap-2"
+                    style={{ backgroundColor: "var(--glass-bg)", color: "var(--glass-text)", fontSize: "0.88rem" }}
+                  >
+                    <Check size={16} /> Recorded in your field journal.
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -240,11 +249,11 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
                 {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
               </span>
             </div>
-            {sightings.length === 0 ? (
+            {visibleSightings.length === 0 ? (
               <p style={{ fontStyle: "italic", fontSize: "0.9rem", color: "var(--muted-foreground)" }}>Nothing logged yet — whenever you're ready.</p>
             ) : (
               <div>
-                {[...sightings]
+                {[...visibleSightings]
                   .sort((a, b) => b.timestamp - a.timestamp)
                   .slice(0, 15)
                   .map((s) => {

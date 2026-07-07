@@ -101,26 +101,24 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
       {/* Step 0: Welcome */}
       {step === 0 && (
         <div
-          className="flex-1 flex flex-col items-center justify-center px-8 text-center gap-6 animate__animated animate__fadeIn"
+          className="welcome-screen flex-1 flex flex-col items-center justify-center px-8 text-center animate__animated animate__fadeIn"
           style={{ position: "relative" }}
         >
-          <div
-            className="rounded-3xl flex items-center justify-center card-surface"
-            style={{ width: 96, height: 96, backgroundColor: "var(--ember-bg)", border: "2px solid var(--border)", padding: 16 }}
-          >
-            <img src="/favicon.webp" alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-          </div>
           <div>
-            <h1 className="font-heading" style={{ fontSize: "2rem", fontWeight: 800, marginBottom: 12, color: "var(--foreground)" }}>
-              Welcome, field researcher
+            <img className="brand-wordmark brand-wordmark-light" src="/images/ephemeris_logo.webp" alt="Ephemeris logo (standard)" />
+            <img className="brand-wordmark brand-wordmark-dark" src="/images/ephemeris_logo-white.webp" alt="Ephemeris logo (white)" />
+          </div>
+          <div className="welcome-copy">
+            <h1 className="welcome-title font-heading" style={{ fontWeight: 800, color: "var(--foreground)" }}>
+              Welcome, field researcher!
             </h1>
-            <p style={{ fontSize: "1.05rem", lineHeight: 1.7, maxWidth: 320, margin: "0 auto", color: "var(--muted-foreground)" }}>
-              Let's set up your bestiary and make this feel like yours. Takes about two minutes.
+            <p className="welcome-subtitle" style={{ color: "var(--muted-foreground)" }}>
+              Let's set up your bestiary and make this feel like yours. It takes about two minutes.
             </p>
           </div>
           <button
             onClick={() => setStep(1)}
-            className="w-full max-w-xs rounded-2xl py-4 btn-primary"
+            className="welcome-cta w-full rounded-2xl py-4 btn-primary"
             style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)", fontWeight: 700, fontSize: "1.05rem" }}
           >
             Get started
@@ -203,7 +201,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                     Pick a profile image
                   </h2>
                   <p style={{ fontSize: "0.95rem", color: "var(--muted-foreground)" }}>
-                    Choose an icon or add your own photo – you can change it later.
+                    Choose an icon or add your own photo – you can always change it later.
                   </p>
                 </div>
                 <div
@@ -219,7 +217,13 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                 <div className="flex gap-2">
                   <label
                     className="flex-1 rounded-xl py-3 border-2 option-card text-center"
-                    style={{ backgroundColor: "var(--surface-1)", borderColor: "transparent", color: "var(--foreground)", fontWeight: 700, fontSize: "0.9rem" }}
+                    style={{
+                      backgroundColor: "var(--surface-1)",
+                      borderColor: "transparent",
+                      color: "var(--foreground)",
+                      fontWeight: 700,
+                      fontSize: "0.9rem",
+                    }}
                   >
                     Add photo
                     <input type="file" accept="image/*" className="sr-only" onChange={(e) => uploadAvatarPhoto(e.target.files?.[0])} />
@@ -228,7 +232,13 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                     <button
                       onClick={() => setAvatarPhoto("")}
                       className="rounded-xl px-4 py-3 border-2 option-card"
-                      style={{ backgroundColor: "var(--surface-1)", borderColor: "transparent", color: "var(--foreground)", fontWeight: 700, fontSize: "0.9rem" }}
+                      style={{
+                        backgroundColor: "var(--surface-1)",
+                        borderColor: "transparent",
+                        color: "var(--foreground)",
+                        fontWeight: 700,
+                        fontSize: "0.9rem",
+                      }}
                     >
                       Use icon
                     </button>
@@ -410,7 +420,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                   className="rounded-xl px-4 py-3"
                   style={{ backgroundColor: "var(--glass-bg)", color: "var(--glass-text)", fontSize: "0.85rem", lineHeight: 1.6 }}
                 >
-                  Every setting here applies instantly and can be changed again later — nothing is locked in.
+                  Every setting here applies instantly and can be changed again later – nothing is locked in.
                 </p>
               </div>
             )}

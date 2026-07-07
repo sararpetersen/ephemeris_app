@@ -59,16 +59,9 @@ export function AuthPage({ onAuth }: Props) {
 
   return (
     <div className="app-shell flex flex-col items-center justify-center px-5 py-12">
-      <div className="flex items-center gap-3 mb-8 animate__animated animate__fadeInDown animate__faster" style={{ position: "relative" }}>
-        <div
-          className="rounded-2xl flex items-center justify-center flex-shrink-0"
-          style={{ width: 52, height: 52, backgroundColor: "var(--ember-bg)", border: "2px solid var(--border)", padding: 8 }}
-        >
-          <img src="/favicon.webp" alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-        </div>
-        <span className="font-heading" style={{ fontWeight: 800, fontSize: "2rem", color: "var(--primary)", letterSpacing: "-0.02em" }}>
-          Ephemeris
-        </span>
+      <div className="mb-8 animate__animated animate__fadeInDown animate__faster" style={{ position: "relative" }}>
+        <img className="brand-wordmark brand-wordmark-light" src="/images/ephemeris_logo.webp" alt="Ephemeris" />
+        <img className="brand-wordmark brand-wordmark-dark" src="/images/ephemeris_logo-white.webp" alt="Ephemeris" />
       </div>
 
       <div
