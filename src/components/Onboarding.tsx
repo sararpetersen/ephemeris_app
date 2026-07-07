@@ -119,7 +119,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
       return;
     }
     if (!data.session) {
-      setSignUpError("Check your inbox to confirm your email, then log in to save this setup.");
+      setSignUpError("Something went wrong creating your account. Please try again.");
       return;
     }
     onRegister?.(data.session);

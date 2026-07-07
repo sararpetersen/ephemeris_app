@@ -120,7 +120,7 @@ export function Settings({ profile, sightings, onChange, onBack, onSignOut, onCl
       return;
     }
     if (!data.session) {
-      setGuestError("Check your inbox to confirm your email, then log in to sync this data.");
+      setGuestError("Something went wrong creating your account. Please try again.");
       return;
     }
     await saveProfileRemote(data.session.user.id, profile);

@@ -20,19 +20,16 @@ export function AuthPage({ onAuth }: Props) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const authPanel = useInView<HTMLDivElement>();
 
   const switchMode = (m: "signup" | "login") => {
     setMode(m);
     setError("");
-    setInfo("");
   };
 
   const submit = async () => {
     setError("");
-    setInfo("");
     if (!email.trim()) {
       setError("Enter your email to continue.");
       return;
@@ -49,7 +46,7 @@ export function AuthPage({ onAuth }: Props) {
           setError("Passwords don't match.");
           return;
         }
-        const { data, error: signUpError } = await supabase.auth.signUp({
+        const { error: signUpError } = await supabase.auth.signUp({
           email: email.trim().toLowerCase(),
           password,
         });
@@ -57,12 +54,7 @@ export function AuthPage({ onAuth }: Props) {
           setError(signUpError.message);
           return;
         }
-        if (data.session) {
-          onAuth({ email: email.trim().toLowerCase(), isGuest: false });
-        } else {
-          setInfo("Check your inbox to confirm your email, then log in below.");
-          setMode("login");
-        }
+        onAuth({ email: email.trim().toLowerCase(), isGuest: false });
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: email.trim().toLowerCase(),
@@ -194,16 +186,6 @@ export function AuthPage({ onAuth }: Props) {
               style={{ backgroundColor: "rgba(192,57,43,0.1)", color: "var(--destructive)", fontSize: "0.88rem", fontWeight: 600 }}
             >
               {error}
-            </p>
-          )}
-
-          {info && (
-            <p
-              role="status"
-              className="rounded-xl px-4 py-2.5"
-              style={{ backgroundColor: "var(--glass-bg)", color: "var(--glass-text)", fontSize: "0.88rem", fontWeight: 600 }}
-            >
-              {info}
             </p>
           )}
 
