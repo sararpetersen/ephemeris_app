@@ -130,7 +130,7 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
         {/* Log a sighting */}
         <div
           ref={sightingCard.ref}
-          className={`rounded-2xl border overflow-hidden card-surface ${revealClass(sightingCard.inView)}`}
+          className={`rounded-2xl border card-surface ${revealClass(sightingCard.inView)}`}
           style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", ...revealStyle() }}
         >
           <div className="accent-bar" />
