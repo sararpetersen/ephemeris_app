@@ -150,7 +150,7 @@ textarea:focus-visible,
   content: attr(data-tooltip);
   position: absolute;
   left: 50%;
-  bottom: calc(100% + 0.5rem);
+  top: calc(100% + 0.5rem);
   width: max-content;
   max-width: min(13rem, 80vw);
   padding: 0.45rem 0.6rem;
@@ -162,7 +162,7 @@ textarea:focus-visible,
   opacity: 0;
   pointer-events: none;
   text-align: center;
-  transform: translate(-50%, 0.25rem);
+  transform: translate(-50%, -0.25rem);
   transition:
     opacity 0.16s ease,
     transform 0.16s ease;

@@ -163,21 +163,22 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
                     style={{
                       backgroundColor: active ? "var(--ember-bg)" : "var(--surface-1)",
                       borderColor: active ? "var(--primary)" : "transparent",
-                      opacity: todayLocked ? 0.62 : 1,
                     }}
                     aria-pressed={active}
                     aria-label={`${d.name}: ${d.represents}`}
                     data-tooltip={d.represents}
                   >
-                    <div className="rounded-lg mx-auto" style={{ width: 56, height: 56, overflow: "hidden" }}>
-                      <img src={d.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                    <div style={{ opacity: todayLocked ? 0.62 : 1 }}>
+                      <div className="rounded-lg mx-auto" style={{ width: 56, height: 56, overflow: "hidden" }}>
+                        <img src={d.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                      </div>
+                      <p
+                        className="font-heading"
+                        style={{ fontWeight: active ? 700 : 600, fontSize: "0.82rem", marginTop: 6, color: "var(--foreground)" }}
+                      >
+                        {d.name}
+                      </p>
                     </div>
-                    <p
-                      className="font-heading"
-                      style={{ fontWeight: active ? 700 : 600, fontSize: "0.82rem", marginTop: 6, color: "var(--foreground)" }}
-                    >
-                      {d.name}
-                    </p>
                   </button>
                 );
               })}
