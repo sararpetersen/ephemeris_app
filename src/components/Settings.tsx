@@ -12,10 +12,10 @@ interface Props {
   onClearData: () => void;
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, children, className = "" }: { title: string; children: ReactNode; className?: string }) {
   return (
     <div
-      className="settings-section rounded-2xl border overflow-hidden card-surface"
+      className={`settings-section ${className} rounded-2xl border overflow-hidden card-surface`}
       style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
     >
       <div className="p-5 space-y-4">
@@ -78,7 +78,7 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
 
         <div className="settings-content">
           {/* Profile */}
-          <Section title="Profile">
+          <Section title="Profile" className="settings-profile-section">
             <div>
               <label style={{ display: "block", fontSize: "0.88rem", fontWeight: 600, marginBottom: 6, color: "var(--foreground)" }}>Name</label>
               <input
@@ -86,6 +86,7 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
                 value={draft.name}
                 onChange={(e) => update({ name: e.target.value })}
                 placeholder="Your name"
+                aria-label="Name"
                 className="w-full rounded-xl px-4 py-3 border outline-none"
                 style={{ backgroundColor: "var(--input-background)", borderColor: "var(--border)", color: "var(--foreground)" }}
               />
@@ -97,6 +98,7 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
               <select
                 value={draft.pronoun}
                 onChange={(e) => update({ pronoun: e.target.value })}
+                aria-label="Pronouns"
                 className="w-full rounded-xl px-4 py-3 border outline-none select-field"
                 style={{
                   backgroundColor: "var(--input-background)",
@@ -137,7 +139,13 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
                     }}
                   >
                     Add photo
-                    <input type="file" accept="image/*" className="sr-only" onChange={(e) => uploadAvatarPhoto(e.target.files?.[0])} />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      aria-label="Add profile photo"
+                      onChange={(e) => uploadAvatarPhoto(e.target.files?.[0])}
+                    />
                   </label>
                   {draft.avatarPhoto && (
                     <button
@@ -157,19 +165,18 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
                 </div>
               </div>
               <p style={{ fontSize: "0.82rem", marginBottom: 8, color: "var(--muted-foreground)" }}>Icon fallback</p>
-              <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(6, 1fr)" }}>
+              <div className="compact-avatar-grid">
                 {AVATARS.map((e) => (
                   <button
                     key={e}
                     onClick={() => update({ avatar: e })}
-                    className="rounded-xl flex items-center justify-center option-card"
+                    className="avatar-option rounded-xl flex items-center justify-center option-card"
                     style={{
-                      aspectRatio: "1",
-                      fontSize: "1.5rem",
                       backgroundColor: draft.avatar === e ? "var(--ember-bg)" : "var(--surface-1)",
                       border: draft.avatar === e ? "2px solid var(--primary)" : "2px solid transparent",
                     }}
                     aria-pressed={draft.avatar === e}
+                    aria-label={`Use ${e} as profile icon`}
                   >
                     {e}
                   </button>
@@ -179,7 +186,7 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
           </Section>
 
           {/* Roster */}
-          <Section title="Your roster">
+          <Section title="Your roster" className="settings-roster-section">
             <p style={{ fontSize: "0.88rem", marginTop: -8, color: "var(--muted-foreground)" }}>
               Choose the dragons you want to see more often in the mood checker.
             </p>
@@ -221,7 +228,7 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
           </Section>
 
           {/* Accessibility */}
-          <Section title="Comfort & accessibility">
+          <Section title="Comfort & accessibility" className="settings-comfort-section">
             <AccessibilityStep
               settings={draft.a11y}
               onChange={(a11y) => {
@@ -238,7 +245,7 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
           </Section>
 
           {/* Account */}
-          <Section title="Account & data">
+          <Section title="Account & data" className="settings-account-section">
             <button
               onClick={onSignOut}
               className="w-full rounded-xl py-3 border-2 option-card"
@@ -265,7 +272,7 @@ export function Settings({ profile, onChange, onBack, onSignOut, onClearData }: 
                 <p style={{ fontSize: "0.88rem", color: "var(--foreground)" }}>
                   This erases your profile and every sighting from this device. There's no undo.
                 </p>
-                <div className="flex gap-2">
+                <div className="settings-danger-actions">
                   <button
                     onClick={onClearData}
                     className="flex-1 rounded-xl py-2.5"

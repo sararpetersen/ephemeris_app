@@ -3,6 +3,7 @@ import type { A11ySettings } from "../types";
 function ToggleRow({ label, description, value, onChange }: { label: string; description: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
+      type="button"
       onClick={() => onChange(!value)}
       className="w-full flex items-center justify-between rounded-xl p-4 text-left border-2 option-card soft-option"
       style={{
@@ -10,7 +11,8 @@ function ToggleRow({ label, description, value, onChange }: { label: string; des
         borderColor: value ? "var(--primary)" : "transparent",
         transition: "all 0.15s",
       }}
-      aria-pressed={value}
+      aria-checked={value}
+      role="switch"
     >
       <div className="flex-1 mr-4">
         <p style={{ fontWeight: 700, color: "var(--foreground)" }}>{label}</p>
@@ -54,6 +56,7 @@ function OptionGroup<V extends string>({
               transition: "all 0.15s",
             }}
             aria-pressed={value === opt.value}
+            type="button"
           >
             <span style={{ fontSize: "0.9rem" }}>{opt.label}</span>
             {opt.hint && (

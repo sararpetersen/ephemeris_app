@@ -240,8 +240,8 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
 
         {/* Field notes — styled like a journal page */}
         <div className="rounded-2xl border overflow-hidden card-surface" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
-          <div className="journal-page py-5 pr-5" style={{ paddingLeft: 60 }}>
-            <div className="flex items-baseline justify-between gap-2" style={{ marginBottom: 12 }}>
+          <div className="journal-page py-5 pr-5">
+            <div className="journal-heading-row">
               <h2 className="font-heading" style={{ fontWeight: 700, color: "var(--foreground)" }}>
                 Field notes
               </h2>

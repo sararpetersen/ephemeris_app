@@ -104,9 +104,9 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
           className="welcome-screen flex-1 flex flex-col items-center justify-center px-8 text-center animate__animated animate__fadeIn"
           style={{ position: "relative" }}
         >
-          <div>
-            <img className="brand-wordmark brand-wordmark-light" src="/images/ephemeris_logo.webp" alt="Ephemeris logo (standard)" />
-            <img className="brand-wordmark brand-wordmark-dark" src="/images/ephemeris_logo-white.webp" alt="Ephemeris logo (white)" />
+          <div role="img" aria-label="Ephemeris">
+            <img className="brand-wordmark brand-wordmark-light" src="/images/ephemeris_logo.webp" alt="" aria-hidden="true" />
+            <img className="brand-wordmark brand-wordmark-dark" src="/images/ephemeris_logo-white.webp" alt="" aria-hidden="true" />
           </div>
           <div className="welcome-copy">
             <h1 className="welcome-title font-heading" style={{ fontWeight: 800, color: "var(--foreground)" }}>
@@ -138,7 +138,14 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
             >
               <ArrowLeft size={20} />
             </button>
-            <div className="flex-1 flex gap-1.5">
+            <div
+              className="flex-1 flex gap-1.5"
+              role="progressbar"
+              aria-label="Onboarding progress"
+              aria-valuemin={1}
+              aria-valuemax={TOTAL_STEPS}
+              aria-valuenow={step}
+            >
               {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
                 <div
                   key={i}
@@ -167,6 +174,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
+                  aria-label="Your name"
                   autoFocus
                   className="w-full rounded-2xl px-5 py-4 border outline-none"
                   style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", color: "var(--foreground)", fontSize: "1.1rem" }}
@@ -226,7 +234,13 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                     }}
                   >
                     Add photo
-                    <input type="file" accept="image/*" className="sr-only" onChange={(e) => uploadAvatarPhoto(e.target.files?.[0])} />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      aria-label="Add profile photo"
+                      onChange={(e) => uploadAvatarPhoto(e.target.files?.[0])}
+                    />
                   </label>
                   {avatarPhoto && (
                     <button
@@ -244,19 +258,19 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                     </button>
                   )}
                 </div>
-                <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(6, 1fr)" }}>
+                <div className="compact-avatar-grid">
                   {AVATARS.map((e) => (
                     <button
                       key={e}
                       onClick={() => setAvatar(e)}
-                      className="rounded-2xl flex items-center justify-center hover:scale-110 option-card"
+                      className="avatar-option rounded-2xl flex items-center justify-center hover:scale-110 option-card"
                       style={{
-                        aspectRatio: "1",
-                        fontSize: "1.8rem",
                         backgroundColor: avatar === e ? "var(--ember-bg)" : "var(--surface-1)",
                         border: avatar === e ? "2px solid var(--primary)" : "2px solid transparent",
                         transition: "all 0.15s",
                       }}
+                      aria-label={`Use ${e} as profile icon`}
+                      aria-pressed={avatar === e && !avatarPhoto}
                     >
                       {e}
                     </button>
@@ -451,6 +465,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                             value={signUpEmail}
                             onChange={(e) => setSignUpEmail(e.target.value)}
                             placeholder="you@example.com"
+                            aria-label="Email"
                             className="w-full rounded-xl px-4 py-2.5 border outline-none"
                             style={{
                               backgroundColor: "var(--input-background)",
@@ -466,6 +481,7 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
                             onChange={(e) => setSignUpPassword(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && registerAndFinish()}
                             placeholder="Password (6+ characters)"
+                            aria-label="Password"
                             className="w-full rounded-xl px-4 py-2.5 border outline-none"
                             style={{
                               backgroundColor: "var(--input-background)",

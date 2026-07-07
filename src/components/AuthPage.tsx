@@ -59,9 +59,9 @@ export function AuthPage({ onAuth }: Props) {
 
   return (
     <div className="app-shell flex flex-col items-center justify-center px-5 py-12">
-      <div className="mb-8 animate__animated animate__fadeInDown animate__faster" style={{ position: "relative" }}>
-        <img className="brand-wordmark brand-wordmark-light" src="/images/ephemeris_logo.webp" alt="Ephemeris" />
-        <img className="brand-wordmark brand-wordmark-dark" src="/images/ephemeris_logo-white.webp" alt="Ephemeris" />
+      <div className="mb-8 animate__animated animate__fadeInDown animate__faster" style={{ position: "relative" }} role="img" aria-label="Ephemeris">
+        <img className="brand-wordmark brand-wordmark-light" src="/images/ephemeris_logo.webp" alt="" aria-hidden="true" />
+        <img className="brand-wordmark brand-wordmark-dark" src="/images/ephemeris_logo-white.webp" alt="" aria-hidden="true" />
       </div>
 
       <div
@@ -73,9 +73,10 @@ export function AuthPage({ onAuth }: Props) {
         <div className="flex rounded-2xl overflow-hidden border" style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border)" }}>
           {(["signup", "login"] as const).map((m) => (
             <button
-              key={m}
+            key={m}
               onClick={() => switchMode(m)}
               className={`flex-1 py-2.5 ${mode === m ? "" : "tab-hover"}`}
+              aria-pressed={mode === m}
               style={{
                 fontWeight: mode === m ? 700 : 500,
                 backgroundColor: mode === m ? "var(--tab-active)" : "transparent",
@@ -99,6 +100,7 @@ export function AuthPage({ onAuth }: Props) {
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
             placeholder="you@example.com"
+            aria-label="Email"
             autoComplete="email"
             className="w-full rounded-xl px-4 py-3 border outline-none focus:border-[var(--primary)]"
             style={{ backgroundColor: "var(--input-background)", borderColor: "var(--border)", color: "var(--foreground)" }}
@@ -116,6 +118,7 @@ export function AuthPage({ onAuth }: Props) {
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submit()}
               placeholder="6+ characters"
+              aria-label="Password"
               autoComplete={mode === "signup" ? "new-password" : "current-password"}
               className="w-full rounded-xl px-4 py-3 border outline-none focus:border-[var(--primary)]"
               style={{ backgroundColor: "var(--input-background)", borderColor: "var(--border)", color: "var(--foreground)", paddingRight: "2.75rem" }}
@@ -143,6 +146,7 @@ export function AuthPage({ onAuth }: Props) {
               onChange={(e) => setConfirmPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submit()}
               placeholder="Re-enter password"
+              aria-label="Confirm password"
               autoComplete="new-password"
               className="w-full rounded-xl px-4 py-3 border outline-none focus:border-[var(--primary)]"
               style={{ backgroundColor: "var(--input-background)", borderColor: "var(--border)", color: "var(--foreground)" }}
