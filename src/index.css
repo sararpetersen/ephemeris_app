@@ -387,6 +387,7 @@ textarea:focus-visible {
    paper texture, not competing lines; removed in high-contrast mode. */
 .journal-page {
   padding-left: clamp(2rem, 10vw, 3.75rem);
+  border-radius: inherit;
   background-image:
     linear-gradient(to right, transparent 44px, var(--journal-margin) 44px, var(--journal-margin) 45px, transparent 45px),
     repeating-linear-gradient(transparent, transparent 27px, var(--journal-rule) 27px, var(--journal-rule) 28px);

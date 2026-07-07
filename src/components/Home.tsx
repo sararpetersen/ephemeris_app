@@ -272,7 +272,7 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
         {/* Field notes — styled like a journal page */}
         <div
           ref={journalCard.ref}
-          className={`rounded-2xl border overflow-hidden card-surface ${revealClass(journalCard.inView)}`}
+          className={`rounded-2xl border card-surface ${revealClass(journalCard.inView)}`}
           style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", ...revealStyle() }}
         >
           <div className="journal-page py-5 pr-5">
