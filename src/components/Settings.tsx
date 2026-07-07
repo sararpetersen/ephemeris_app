@@ -1,9 +1,10 @@
 import { useRef, useState, type ReactNode } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { ArrowLeft, Check, Download, Upload } from "lucide-react";
 import { AccessibilityStep } from "./AccessibilityStep";
 import { applyA11y } from "../utils/applyA11y";
-import { hashPassword } from "../utils/crypto";
-import { getAccounts, saveAccounts } from "../utils/accounts";
+import { supabase } from "../utils/supabaseClient";
+import { saveProfileRemote, replaceAllSightingsRemote } from "../utils/supabaseData";
 import { useInView } from "../hooks/useInView";
 import { revealClass, revealStyle } from "../utils/reveal";
 import { type AuthState } from "./AuthPage";
@@ -20,7 +21,7 @@ interface Props {
   onClearData: () => void;
   isGuest: boolean;
   auth: AuthState;
-  onSetAuth: (auth: AuthState) => void;
+  onSessionChange: (session: Session) => void;
   onImportData: (profile: ProfileData, sightings: Sighting[]) => void;
 }
 
@@ -51,7 +52,7 @@ function Section({
   );
 }
 
-export function Settings({ profile, sightings, onChange, onBack, onSignOut, onClearData, isGuest, auth, onSetAuth, onImportData }: Props) {
+export function Settings({ profile, sightings, onChange, onBack, onSignOut, onClearData, isGuest, auth, onSessionChange, onImportData }: Props) {
   const [draft, setDraft] = useState<ProfileData>(profile);
   const [confirmClear, setConfirmClear] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
@@ -110,42 +111,50 @@ export function Settings({ profile, sightings, onChange, onBack, onSignOut, onCl
       setGuestError("Password must be at least 6 characters.");
       return;
     }
-    const accounts = getAccounts();
-    const key = guestEmail.trim().toLowerCase();
-    if (accounts[key]) {
-      setGuestError("An account with that email already exists.");
+    const { data, error } = await supabase.auth.signUp({
+      email: guestEmail.trim().toLowerCase(),
+      password: guestPassword,
+    });
+    if (error) {
+      setGuestError(error.message);
       return;
     }
-    accounts[key] = { passwordHash: await hashPassword(guestPassword) };
-    saveAccounts(accounts);
-    onSetAuth({ email: key, isGuest: false });
+    if (!data.session) {
+      setGuestError("Check your inbox to confirm your email, then log in to sync this data.");
+      return;
+    }
+    await saveProfileRemote(data.session.user.id, profile);
+    await replaceAllSightingsRemote(data.session.user.id, sightings);
+    onSessionChange(data.session);
     setGuestEmail("");
     setGuestPassword("");
   };
 
   const updateCredentials = async () => {
     setCredError("");
-    const accounts = getAccounts();
-    const currentKey = auth.email.toLowerCase();
-    const stored = accounts[currentKey];
-    if (!stored || stored.passwordHash !== (await hashPassword(credCurrentPassword))) {
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: auth.email,
+      password: credCurrentPassword,
+    });
+    if (verifyError) {
       setCredError("Current password is incorrect.");
       return;
     }
-    const newKey = credEmail.trim().toLowerCase();
-    if (!newKey) {
+    const newEmail = credEmail.trim().toLowerCase();
+    if (!newEmail) {
       setCredError("Email can't be empty.");
       return;
     }
-    if (newKey !== currentKey && accounts[newKey]) {
-      setCredError("That email is already in use.");
+    const { error } = await supabase.auth.updateUser({
+      email: newEmail !== auth.email ? newEmail : undefined,
+      password: credPassword || undefined,
+    });
+    if (error) {
+      setCredError(error.message);
       return;
     }
-    const newPasswordHash = credPassword ? await hashPassword(credPassword) : stored.passwordHash;
-    delete accounts[currentKey];
-    accounts[newKey] = { passwordHash: newPasswordHash };
-    saveAccounts(accounts);
-    onSetAuth({ email: newKey, isGuest: false });
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session) onSessionChange(sessionData.session);
     setCredPassword("");
     setCredCurrentPassword("");
     setCredSaved(true);
@@ -519,21 +528,28 @@ export function Settings({ profile, sightings, onChange, onBack, onSignOut, onCl
 
           {/* About & privacy */}
           <Section title="About & privacy" className="settings-privacy-section">
-            <p style={{ fontSize: "0.88rem", lineHeight: 1.6, color: "var(--muted-foreground)", fontWeight: 300 }}>
-              Your journal <strong style={{ fontWeight: 800 }}>never leaves your device</strong>. Ephemeris stores your profile, sightings, and
-              settings only in this browser's{" "}
-              <code
-                className="tooltip-target"
-                tabIndex={0}
-                data-tooltip="A small storage space built into your browser, tied to this site only. It stays on your device and isn't sent anywhere."
-                style={{ color: "var(--primary)", fontWeight: 300, fontSize: "0.85rem" }}
-              >
-                localStorage
-              </code>{" "}
-              –
-              there's no server, no analytics, no tracking, and nothing is shared with third parties. Deleting your data from this page removes it
-              completely and for good.
-            </p>
+            {isGuest ? (
+              <p style={{ fontSize: "0.88rem", lineHeight: 1.6, color: "var(--muted-foreground)", fontWeight: 300 }}>
+                Your journal <strong style={{ fontWeight: 800 }}>never leaves your device</strong>. As a guest, Ephemeris stores your profile,
+                sightings, and settings only in this browser's{" "}
+                <code
+                  className="tooltip-target"
+                  tabIndex={0}
+                  data-tooltip="A small storage space built into your browser, tied to this site only. It stays on your device and isn't sent anywhere."
+                  style={{ color: "var(--primary)", fontWeight: 300, fontSize: "0.85rem" }}
+                >
+                  localStorage
+                </code>{" "}
+                – there's no server, no analytics, no tracking, and nothing is shared with third parties. Deleting your data from this page removes
+                it completely and for good.
+              </p>
+            ) : (
+              <p style={{ fontSize: "0.88rem", lineHeight: 1.6, color: "var(--muted-foreground)", fontWeight: 300 }}>
+                Your journal is <strong style={{ fontWeight: 800 }}>synced to your account</strong> via Supabase, so it follows you across
+                devices. Your data is private to your account only – no analytics, no tracking, and nothing is shared with third parties. Deleting
+                your data from this page removes it completely and for good.
+              </p>
+            )}
             <div className="flex items-center justify-between flex-wrap gap-2">
               <a
                 href="https://web-ephemeris.netlify.app/privacy"

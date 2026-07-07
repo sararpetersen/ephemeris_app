@@ -1,45 +1,31 @@
 import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { AuthPage, type AuthState } from "./components/AuthPage";
 import { Onboarding } from "./components/Onboarding";
 import { Home } from "./components/Home";
 import { Settings } from "./components/Settings";
 import { applyA11y } from "./utils/applyA11y";
-import { getAccounts } from "./utils/accounts";
+import { supabase } from "./utils/supabaseClient";
+import {
+  fetchProfile,
+  fetchSightings,
+  saveProfileRemote,
+  insertSightingRemote,
+  updateSightingRemote,
+  replaceAllSightingsRemote,
+  deleteAllRemoteData,
+} from "./utils/supabaseData";
 import { DEFAULT_PROFILE, type ProfileData, type Sighting } from "./types";
 
-type Stage = "auth" | "onboarding" | "app";
+type Stage = "loading" | "auth" | "onboarding" | "app";
 type Screen = "home" | "settings";
 
-function loadAuth(): AuthState | null {
-  try {
-    const raw = localStorage.getItem("ephemeris-auth");
-    if (raw) return JSON.parse(raw) as AuthState;
-  } catch {
-    // fall through to recovery below
-  }
-  // Legacy sessions (created before auth identity was persisted) have no
-  // "ephemeris-auth" entry. This app only ever stores accounts on this one
-  // device, so if there's exactly one registered account, it must be this
-  // profile's owner.
-  const accounts = getAccounts();
-  const keys = Object.keys(accounts);
-  if (keys.length === 1) {
-    const recovered: AuthState = { email: keys[0], isGuest: false };
-    saveAuth(recovered);
-    return recovered;
-  }
-  return null;
+async function getCurrentUserId(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user.id ?? null;
 }
 
-function saveAuth(state: AuthState | null) {
-  if (state) {
-    localStorage.setItem("ephemeris-auth", JSON.stringify(state));
-  } else {
-    localStorage.removeItem("ephemeris-auth");
-  }
-}
-
-function loadProfile(): ProfileData | null {
+function loadGuestProfile(): ProfileData | null {
   try {
     const raw = localStorage.getItem("ephemeris-profile");
     return raw ? (JSON.parse(raw) as ProfileData) : null;
@@ -48,13 +34,21 @@ function loadProfile(): ProfileData | null {
   }
 }
 
-function loadSightings(): Sighting[] {
+function loadGuestSightings(): Sighting[] {
   try {
     const raw = localStorage.getItem("ephemeris-sightings");
     return raw ? (JSON.parse(raw) as Sighting[]) : [];
   } catch {
     return [];
   }
+}
+
+function saveGuestProfile(p: ProfileData) {
+  localStorage.setItem("ephemeris-profile", JSON.stringify(p));
+}
+
+function saveGuestSightings(s: Sighting[]) {
+  localStorage.setItem("ephemeris-sightings", JSON.stringify(s));
 }
 
 function cleanVersion(version: string): string {
@@ -92,47 +86,101 @@ function getLocalJournalLabel() {
 }
 
 function App() {
-  const [stage, setStage] = useState<Stage>("auth");
+  const [stage, setStage] = useState<Stage>("loading");
   const [screen, setScreen] = useState<Screen>("home");
-  const [auth, setAuth] = useState<AuthState | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [profile, setProfile] = useState<ProfileData>(DEFAULT_PROFILE);
   const [sightings, setSightings] = useState<Sighting[]>([]);
 
-  const updateAuth = (state: AuthState | null) => {
-    saveAuth(state);
-    setAuth(state);
-  };
+  const auth: AuthState = { email: session?.user.email ?? "", isGuest: isGuest || !session };
 
-  useEffect(() => {
-    if (localStorage.getItem("ephemeris-signed-out") === "1") return;
-    const existing = loadProfile();
-    if (existing) {
-      setAuth(loadAuth());
-      setProfile(existing);
-      setSightings(loadSightings());
-      applyA11y(existing.a11y);
-      setStage("app");
-    }
-  }, []);
-
-  const handleAuth = (state: AuthState) => {
+  const loadRemote = async (uid: string) => {
     localStorage.removeItem("ephemeris-signed-out");
-    updateAuth(state);
-    const existing = loadProfile();
-    if (existing) {
-      setProfile(existing);
-      setSightings(loadSightings());
-      applyA11y(existing.a11y);
+    setIsGuest(false);
+    const [remoteProfile, remoteSightings] = await Promise.all([fetchProfile(uid), fetchSightings(uid)]);
+    if (remoteProfile) {
+      setProfile(remoteProfile);
+      setSightings(remoteSightings);
+      applyA11y(remoteProfile.a11y);
       setStage("app");
     } else {
       setStage("onboarding");
     }
   };
 
-  const saveProfile = (p: ProfileData) => {
+  useEffect(() => {
+    let cancelled = false;
+
+    const init = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (data.session) {
+        setSession(data.session);
+        await loadRemote(data.session.user.id);
+        return;
+      }
+      if (localStorage.getItem("ephemeris-signed-out") !== "1") {
+        const existing = loadGuestProfile();
+        if (existing) {
+          setIsGuest(true);
+          setProfile(existing);
+          setSightings(loadGuestSightings());
+          applyA11y(existing.a11y);
+          setStage("app");
+          return;
+        }
+      }
+      setStage("auth");
+    };
+
+    init();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAuth = async (state: AuthState) => {
+    if (state.isGuest) {
+      localStorage.removeItem("ephemeris-signed-out");
+      setIsGuest(true);
+      const existing = loadGuestProfile();
+      if (existing) {
+        setProfile(existing);
+        setSightings(loadGuestSightings());
+        applyA11y(existing.a11y);
+        setStage("app");
+      } else {
+        setStage("onboarding");
+      }
+      return;
+    }
+    const uid = await getCurrentUserId();
+    if (uid) {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+      await loadRemote(uid);
+    }
+  };
+
+  const saveProfile = async (p: ProfileData) => {
     setProfile(p);
-    localStorage.setItem("ephemeris-profile", JSON.stringify(p));
     applyA11y(p.a11y);
+    const uid = await getCurrentUserId();
+    if (uid) {
+      await saveProfileRemote(uid, p);
+    } else {
+      saveGuestProfile(p);
+    }
   };
 
   const handleOnboardingComplete = (p: ProfileData) => {
@@ -140,53 +188,92 @@ function App() {
     setStage("app");
   };
 
-  const handleLog = (s: Sighting) => {
+  const handleLog = async (s: Sighting) => {
+    const uid = await getCurrentUserId();
     setSightings((prev) => {
       const next = [...prev, s];
-      localStorage.setItem("ephemeris-sightings", JSON.stringify(next));
+      if (!uid) saveGuestSightings(next);
       return next;
     });
+    if (uid) await insertSightingRemote(uid, s);
   };
 
-  const handleUpdateSighting = (id: string, patch: Pick<Sighting, "context" | "note">) => {
+  const handleUpdateSighting = async (id: string, patch: Pick<Sighting, "context" | "note">) => {
+    const uid = await getCurrentUserId();
     setSightings((prev) => {
       const next = prev.map((s) => (s.id === id ? { ...s, ...patch } : s));
-      localStorage.setItem("ephemeris-sightings", JSON.stringify(next));
+      if (!uid) saveGuestSightings(next);
       return next;
     });
+    if (uid) await updateSightingRemote(uid, id, patch);
   };
 
-  const handleSignOut = () => {
-    localStorage.setItem("ephemeris-signed-out", "1");
-    updateAuth(null);
+  const handleSignOut = async () => {
+    const uid = await getCurrentUserId();
+    if (uid) {
+      await supabase.auth.signOut();
+      setSession(null);
+    } else {
+      localStorage.setItem("ephemeris-signed-out", "1");
+      setIsGuest(false);
+    }
     setScreen("home");
     setStage("auth");
   };
 
-  const handleImportData = (p: ProfileData, s: Sighting[]) => {
-    saveProfile(p);
+  const handleImportData = async (p: ProfileData, s: Sighting[]) => {
+    setProfile(p);
     setSightings(s);
-    localStorage.setItem("ephemeris-sightings", JSON.stringify(s));
+    applyA11y(p.a11y);
+    const uid = await getCurrentUserId();
+    if (uid) {
+      await saveProfileRemote(uid, p);
+      await replaceAllSightingsRemote(uid, s);
+    } else {
+      saveGuestProfile(p);
+      saveGuestSightings(s);
+    }
   };
 
-  const handleClearData = () => {
-    localStorage.removeItem("ephemeris-profile");
-    localStorage.removeItem("ephemeris-sightings");
-    localStorage.removeItem("ephemeris-onboarding-draft");
-    localStorage.removeItem("ephemeris-signed-out");
+  const handleClearData = async () => {
+    const uid = await getCurrentUserId();
+    if (uid) {
+      await deleteAllRemoteData(uid);
+      await supabase.auth.signOut();
+      setSession(null);
+    } else {
+      localStorage.removeItem("ephemeris-profile");
+      localStorage.removeItem("ephemeris-sightings");
+      localStorage.removeItem("ephemeris-onboarding-draft");
+      localStorage.removeItem("ephemeris-signed-out");
+      setIsGuest(false);
+    }
     setProfile(DEFAULT_PROFILE);
     setSightings([]);
-    updateAuth(null);
     setScreen("home");
     setStage("auth");
   };
+
+  if (stage === "loading") {
+    return <div className="app-shell" />;
+  }
 
   if (stage === "auth") {
     return <AuthPage onAuth={handleAuth} />;
   }
 
   if (stage === "onboarding") {
-    return <Onboarding isGuest={auth?.isGuest} onComplete={handleOnboardingComplete} onRegister={(email) => updateAuth({ email, isGuest: false })} />;
+    return (
+      <Onboarding
+        isGuest={isGuest}
+        onComplete={handleOnboardingComplete}
+        onRegister={(newSession) => {
+          localStorage.removeItem("ephemeris-signed-out");
+          setSession(newSession);
+          setIsGuest(false);
+        }}
+      />
+    );
   }
 
   if (screen === "settings") {
@@ -198,9 +285,13 @@ function App() {
         onBack={() => setScreen("home")}
         onSignOut={handleSignOut}
         onClearData={handleClearData}
-        isGuest={auth?.isGuest || !auth?.email}
-        auth={auth ?? { email: "", isGuest: true }}
-        onSetAuth={updateAuth}
+        isGuest={auth.isGuest}
+        auth={auth}
+        onSessionChange={(newSession) => {
+          localStorage.removeItem("ephemeris-signed-out");
+          setSession(newSession);
+          setIsGuest(false);
+        }}
         onImportData={handleImportData}
       />
     );
@@ -213,7 +304,7 @@ function App() {
       onLog={handleLog}
       onUpdateSighting={handleUpdateSighting}
       onOpenSettings={() => setScreen("settings")}
-      accountLabel={auth?.isGuest || !auth?.email ? getLocalJournalLabel() : auth.email}
+      accountLabel={auth.isGuest || !auth.email ? getLocalJournalLabel() : auth.email}
     />
   );
 }

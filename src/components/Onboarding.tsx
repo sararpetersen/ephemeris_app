@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
-import { hashPassword } from "../utils/crypto";
-import { getAccounts, saveAccounts } from "../utils/accounts";
+import { supabase } from "../utils/supabaseClient";
 import { applyA11y } from "../utils/applyA11y";
 import { useInView } from "../hooks/useInView";
 import { revealClass, revealStyle } from "../utils/reveal";
@@ -44,7 +44,7 @@ function loadDraft(): OnboardingDraft | null {
 interface Props {
   onComplete: (profile: ProfileData) => void;
   isGuest?: boolean;
-  onRegister?: (email: string) => void;
+  onRegister?: (session: Session) => void;
 }
 
 function RevealGroup({ children, className = "" }: { children: ReactNode; className?: string }) {
@@ -110,14 +110,19 @@ export function Onboarding({ onComplete, isGuest, onRegister }: Props) {
       setSignUpError("Password must be at least 6 characters.");
       return;
     }
-    const accounts = getAccounts();
-    if (accounts[signUpEmail.toLowerCase()]) {
-      setSignUpError("That email is already in use.");
+    const { data, error } = await supabase.auth.signUp({
+      email: signUpEmail.trim().toLowerCase(),
+      password: signUpPassword,
+    });
+    if (error) {
+      setSignUpError(error.message);
       return;
     }
-    accounts[signUpEmail.toLowerCase()] = { passwordHash: await hashPassword(signUpPassword) };
-    saveAccounts(accounts);
-    onRegister?.(signUpEmail.toLowerCase());
+    if (!data.session) {
+      setSignUpError("Check your inbox to confirm your email, then log in to save this setup.");
+      return;
+    }
+    onRegister?.(data.session);
     finish();
   };
 

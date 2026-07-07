@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { hashPassword } from "../utils/crypto";
-import { getAccounts, saveAccounts } from "../utils/accounts";
+import { supabase } from "../utils/supabaseClient";
 import { useInView } from "../hooks/useInView";
 import { revealClass, revealStyle } from "../utils/reveal";
 
@@ -21,15 +20,19 @@ export function AuthPage({ onAuth }: Props) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const authPanel = useInView<HTMLDivElement>();
 
   const switchMode = (m: "signup" | "login") => {
     setMode(m);
     setError("");
+    setInfo("");
   };
 
   const submit = async () => {
     setError("");
+    setInfo("");
     if (!email.trim()) {
       setError("Enter your email to continue.");
       return;
@@ -39,28 +42,40 @@ export function AuthPage({ onAuth }: Props) {
       return;
     }
 
-    const accounts = getAccounts();
-    const passwordHash = await hashPassword(password);
-
-    if (mode === "signup") {
-      if (confirmPassword !== password) {
-        setError("Passwords don't match.");
-        return;
+    setSubmitting(true);
+    try {
+      if (mode === "signup") {
+        if (confirmPassword !== password) {
+          setError("Passwords don't match.");
+          return;
+        }
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+        if (signUpError) {
+          setError(signUpError.message);
+          return;
+        }
+        if (data.session) {
+          onAuth({ email: email.trim().toLowerCase(), isGuest: false });
+        } else {
+          setInfo("Check your inbox to confirm your email, then log in below.");
+          setMode("login");
+        }
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+        if (signInError) {
+          setError(signInError.message === "Invalid login credentials" ? "Incorrect email or password." : signInError.message);
+          return;
+        }
+        onAuth({ email: email.trim().toLowerCase(), isGuest: false });
       }
-      if (accounts[email.toLowerCase()]) {
-        setError("An account with that email already exists.");
-        return;
-      }
-      accounts[email.toLowerCase()] = { passwordHash };
-      saveAccounts(accounts);
-      onAuth({ email: email.toLowerCase(), isGuest: false });
-    } else {
-      const stored = accounts[email.toLowerCase()];
-      if (!stored || stored.passwordHash !== passwordHash) {
-        setError("Incorrect email or password.");
-        return;
-      }
-      onAuth({ email: email.toLowerCase(), isGuest: false });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -182,12 +197,29 @@ export function AuthPage({ onAuth }: Props) {
             </p>
           )}
 
+          {info && (
+            <p
+              role="status"
+              className="rounded-xl px-4 py-2.5"
+              style={{ backgroundColor: "var(--glass-bg)", color: "var(--glass-text)", fontSize: "0.88rem", fontWeight: 600 }}
+            >
+              {info}
+            </p>
+          )}
+
           <button
             onClick={submit}
+            disabled={submitting}
             className="w-full rounded-2xl py-3.5 btn-primary"
-            style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)", fontWeight: 700, fontSize: "1rem" }}
+            style={{
+              backgroundColor: "var(--primary)",
+              color: "var(--primary-foreground)",
+              fontWeight: 700,
+              fontSize: "1rem",
+              opacity: submitting ? 0.7 : 1,
+            }}
           >
-            {mode === "signup" ? "Create account" : "Log in"}
+            {submitting ? "Please wait…" : mode === "signup" ? "Create account" : "Log in"}
           </button>
 
             <button
@@ -201,7 +233,7 @@ export function AuthPage({ onAuth }: Props) {
         </div>
 
         <p className="mt-6 text-center" style={{ fontSize: "0.76rem", maxWidth: 300, lineHeight: 1.6, color: "var(--muted-foreground)" }}>
-          Your account data stays on this device for now — no server, no tracking.
+          Signing up syncs your journal to your account. Guest mode keeps everything on this device only.
         </p>
       </div>
     </div>
