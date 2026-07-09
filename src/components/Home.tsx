@@ -4,14 +4,23 @@ import { CONTEXT_TAGS, DRAGON_SPECIES, type ProfileData, type Sighting } from ".
 import { useInView } from "../hooks/useInView";
 import { revealClass, revealStyle } from "../utils/reveal";
 
+function calendarDayDiff(ts: number, now: number): number {
+  const a = new Date(ts);
+  const b = new Date(now);
+  a.setHours(0, 0, 0, 0);
+  b.setHours(0, 0, 0, 0);
+  return Math.round((b.getTime() - a.getTime()) / 86_400_000);
+}
+
 function relativeTime(ts: number): string {
-  const diff = Date.now() - ts;
+  const now = Date.now();
+  const diff = now - ts;
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
+  const days = calendarDayDiff(ts, now);
+  if (days === 0) return `${hours}h ago`;
   if (days === 1) return "yesterday";
   if (days < 7) return `${days} days ago`;
   return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -280,9 +289,7 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
               <h2 className="font-heading" style={{ fontWeight: 700, color: "var(--foreground)" }}>
                 Field notes
               </h2>
-              <span style={{ fontStyle: "italic", fontSize: "0.82rem", color: "var(--muted-foreground)" }}>
-                {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-              </span>
+              <span style={{ fontStyle: "italic", fontSize: "0.82rem", color: "var(--muted-foreground)" }}>Recent sightings</span>
             </div>
             {visibleSightings.length === 0 ? (
               <p style={{ fontStyle: "italic", fontSize: "0.9rem", color: "var(--muted-foreground)" }}>Nothing logged yet — whenever you're ready.</p>
