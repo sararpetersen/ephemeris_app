@@ -217,17 +217,24 @@ textarea:focus-visible,
 input,
 select,
 textarea {
-  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition:
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 input:hover:not(:focus),
 select:hover:not(:focus),
 textarea:hover:not(:focus) {
   border-color: var(--muted-foreground) !important;
 }
+/* Unlike buttons, fields already signal focus through their border, so
+   the global offset outline would double up (border + detached ring).
+   Use a snug ring that hugs the field's own radius instead. */
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   border-color: var(--primary) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.25);
 }
 
 /* Dropdowns: strip the native arrow and draw our own chevron so the
@@ -353,6 +360,22 @@ textarea:focus-visible {
 .sighting-reveal-inner {
   min-height: 0;
   overflow: hidden;
+  /* Breathing room so focus rings and button glows aren't clipped by the
+     height-animation clip box; the negative margins cancel the padding in
+     layout, so closed height still nets to zero. */
+  padding: 12px;
+  margin: -12px;
+}
+/* Once fully open there's nothing left to clip — release the overflow so
+   even wide glows render, but only after the height animation finishes. */
+@supports (transition-behavior: allow-discrete) {
+  .sighting-reveal-open .sighting-reveal-inner {
+    overflow: visible;
+    transition-property: overflow;
+    transition-duration: 0s;
+    transition-delay: 0.24s;
+    transition-behavior: allow-discrete;
+  }
 }
 
 :root.reduce-motion .sighting-reveal {
