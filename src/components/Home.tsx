@@ -37,6 +37,12 @@ function localDayKey(): string {
   return `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
 }
 
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+function monthLabel(timestamp: number): string {
+  return new Date(timestamp).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
 function pickMoodDragons(profile: ProfileData) {
   const preferred = DRAGON_SPECIES.filter((d) => profile.dragonRoster.includes(d.key)).sort(() => Math.random() - 0.5);
   const others = DRAGON_SPECIES.filter((d) => !profile.dragonRoster.includes(d.key)).sort(() => Math.random() - 0.5);
@@ -59,6 +65,7 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
   const [tags, setTags] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [justLogged, setJustLogged] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
   const [currentDay, setCurrentDay] = useState(localDayKey);
   const previousDay = useRef(currentDay);
   const [, forceTick] = useState(0);
@@ -99,6 +106,15 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
   const latestTodayDragon = latestToday ? DRAGON_SPECIES.find((d) => d.key === latestToday.dragonKey) : undefined;
   const todayLocked = Boolean(latestToday && !activeSightingId);
   const visibleSightings = activeSightingId ? sightings.filter((s) => s.id !== activeSightingId) : sightings;
+  const archiveCutoff = Date.now() - THIRTY_DAYS_MS;
+  const sortedSightings = [...visibleSightings].sort((a, b) => b.timestamp - a.timestamp);
+  const recentSightings = sortedSightings.filter((s) => s.timestamp >= archiveCutoff);
+  const archivedSightings = sortedSightings.filter((s) => s.timestamp < archiveCutoff);
+  const archivedByMonth = archivedSightings.reduce<Record<string, Sighting[]>>((groups, sighting) => {
+    const label = monthLabel(sighting.timestamp);
+    (groups[label] ??= []).push(sighting);
+    return groups;
+  }, {});
 
   const toggleTag = (key: string) => setTags((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
@@ -316,10 +332,10 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
               <p style={{ fontStyle: "italic", fontSize: "0.9rem", color: "var(--muted-foreground)" }}>Nothing logged yet — whenever you're ready.</p>
             ) : (
               <div>
-                {[...visibleSightings]
-                  .sort((a, b) => b.timestamp - a.timestamp)
-                  .slice(0, 15)
-                  .map((s) => {
+                {recentSightings.length === 0 && (
+                  <p style={{ fontStyle: "italic", fontSize: "0.9rem", color: "var(--muted-foreground)" }}>No sightings in the last 30 days.</p>
+                )}
+                {recentSightings.map((s) => {
                     const dragon = DRAGON_SPECIES.find((d) => d.key === s.dragonKey);
                     if (!dragon) return null;
                     const tagLabels = s.context
@@ -351,6 +367,69 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
                       </div>
                     );
                   })}
+
+                {archivedSightings.length > 0 && (
+                  <div style={{ marginTop: "1rem" }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowArchive((shown) => !shown)}
+                      className="w-full rounded-xl px-4 py-3 border"
+                      style={{
+                        backgroundColor: "var(--surface-1)",
+                        borderColor: "var(--border)",
+                        color: "var(--foreground)",
+                        fontWeight: 700,
+                      }}
+                      aria-expanded={showArchive}
+                    >
+                      {showArchive ? "Hide older sightings" : `View older sightings (${archivedSightings.length})`}
+                    </button>
+
+                    {showArchive && (
+                      <div style={{ marginTop: "1rem" }}>
+                        {Object.entries(archivedByMonth).map(([month, entries]) => (
+                          <section key={month} style={{ marginTop: "1rem" }}>
+                            <h3
+                              className="font-heading"
+                              style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--muted-foreground)" }}
+                            >
+                              {month}
+                            </h3>
+                            {entries.map((s) => {
+                              const dragon = DRAGON_SPECIES.find((d) => d.key === s.dragonKey);
+                              if (!dragon) return null;
+                              const tagLabels = s.context
+                                .map((k) => CONTEXT_TAGS.find((t) => t.key === k))
+                                .filter(Boolean)
+                                .map((t) => `${t!.emoji} ${t!.label}`);
+                              return (
+                                <div key={s.id} className="journal-entry flex items-start gap-3 py-3">
+                                  <div className="rounded-lg shrink-0" style={{ width: 44, height: 44, overflow: "hidden" }}>
+                                    <img src={dragon.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                                  </div>
+                                  <div className="flex-1" style={{ minWidth: 0 }}>
+                                    <div className="flex items-baseline justify-between gap-2">
+                                      <p className="font-heading" style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--foreground)" }}>
+                                        {dragon.name}
+                                      </p>
+                                      <span style={{ fontStyle: "italic", fontSize: "0.75rem", color: "var(--muted-foreground)", flexShrink: 0 }}>
+                                        {new Date(s.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                      </span>
+                                    </div>
+                                    {tagLabels.length > 0 && (
+                                      <p style={{ fontSize: "0.78rem", color: "var(--muted-foreground)", marginTop: 1 }}>{tagLabels.join(" · ")}</p>
+                                    )}
+                                    {s.note && <p style={{ fontStyle: "italic", fontSize: "0.88rem", marginTop: 4, color: "var(--foreground)" }}>{s.note}</p>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </section>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
