@@ -1,5 +1,12 @@
 @import "tailwindcss";
-@import "animate.css";
+
+*,
+*::before,
+*::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
 
 :root {
   --background: #f5f4f0;
@@ -276,16 +283,6 @@ textarea:focus-visible {
 }
 
 .reveal-pending {
-  opacity: 0;
-}
-
-@media (prefers-reduced-motion: reduce), (forced-colors: active) {
-  .reveal-pending {
-    opacity: 1;
-  }
-}
-
-:root.reduce-motion .reveal-pending {
   opacity: 1;
 }
 

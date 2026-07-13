@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, Settings as SettingsIcon } from "lucide-react";
 import { CONTEXT_TAGS, DRAGON_SPECIES, type ProfileData, type Sighting } from "../types";
 import { useInView } from "../hooks/useInView";
@@ -32,6 +32,11 @@ function isToday(ts: number): boolean {
   return date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate();
 }
 
+function localDayKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+}
+
 function pickMoodDragons(profile: ProfileData) {
   const preferred = DRAGON_SPECIES.filter((d) => profile.dragonRoster.includes(d.key)).sort(() => Math.random() - 0.5);
   const others = DRAGON_SPECIES.filter((d) => !profile.dragonRoster.includes(d.key)).sort(() => Math.random() - 0.5);
@@ -48,12 +53,14 @@ interface Props {
 }
 
 export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettings, accountLabel }: Props) {
-  const [moodDragons] = useState(() => pickMoodDragons(profile));
+  const [moodDragons, setMoodDragons] = useState(() => pickMoodDragons(profile));
   const [selectedDragon, setSelectedDragon] = useState<string | null>(null);
   const [activeSightingId, setActiveSightingId] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [justLogged, setJustLogged] = useState(false);
+  const [currentDay, setCurrentDay] = useState(localDayKey);
+  const previousDay = useRef(currentDay);
   const [, forceTick] = useState(0);
   const header = useInView<HTMLDivElement>();
   const sightingCard = useInView<HTMLDivElement>();
@@ -61,7 +68,10 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
   const journalCard = useInView<HTMLDivElement>();
 
   useEffect(() => {
-    const recheck = () => forceTick((n) => n + 1);
+    const recheck = () => {
+      setCurrentDay(localDayKey());
+      forceTick((n) => n + 1);
+    };
     const interval = setInterval(recheck, 60_000);
     document.addEventListener("visibilitychange", recheck);
     window.addEventListener("focus", recheck);
@@ -71,6 +81,17 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
       window.removeEventListener("focus", recheck);
     };
   }, []);
+
+  useEffect(() => {
+    if (previousDay.current === currentDay) return;
+    previousDay.current = currentDay;
+    setMoodDragons(pickMoodDragons(profile));
+    setSelectedDragon(null);
+    setActiveSightingId(null);
+    setTags([]);
+    setNote("");
+    setJustLogged(false);
+  }, [currentDay, profile]);
 
   const latestToday = sightings
     .filter((s) => isToday(s.timestamp))
