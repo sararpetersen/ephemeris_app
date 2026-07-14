@@ -52,6 +52,12 @@ function saveGuestSightings(s: Sighting[]) {
   localStorage.setItem("ephemeris-sightings", JSON.stringify(s));
 }
 
+function clearGuestData() {
+  localStorage.removeItem("ephemeris-profile");
+  localStorage.removeItem("ephemeris-sightings");
+  localStorage.removeItem("ephemeris-onboarding-draft");
+}
+
 function cleanVersion(version: string): string {
   return version.replaceAll("_", ".");
 }
@@ -96,16 +102,34 @@ function App() {
 
   const auth: AuthState = { email: session?.user.email ?? "", isGuest: isGuest || !session };
 
-  const loadRemote = async (uid: string) => {
+  const loadRemote = async (uid: string, migrateGuestData = false) => {
     localStorage.removeItem("ephemeris-signed-out");
     setIsGuest(false);
-    const [remoteProfile, remoteSightings] = await Promise.all([fetchProfile(uid), fetchSightings(uid)]);
+    let [remoteProfile, remoteSightings] = await Promise.all([fetchProfile(uid), fetchSightings(uid)]);
+
+    if (migrateGuestData) {
+      const guestProfile = loadGuestProfile();
+      const guestSightings = loadGuestSightings();
+      if (guestSightings.length > 0) {
+        const merged = new Map(remoteSightings.map((s) => [s.id, s]));
+        guestSightings.forEach((s) => merged.set(s.id, s));
+        remoteSightings = [...merged.values()].sort((a, b) => a.timestamp - b.timestamp);
+        await replaceAllSightingsRemote(uid, remoteSightings);
+      }
+      if (!remoteProfile && guestProfile) {
+        await saveProfileRemote(uid, guestProfile);
+        remoteProfile = guestProfile;
+      }
+      clearGuestData();
+    }
+
     if (remoteProfile) {
       setProfile(remoteProfile);
       setSightings(remoteSightings);
       applyA11y(remoteProfile.a11y);
       setStage("app");
     } else {
+      setSightings(remoteSightings);
       setStage("onboarding");
     }
   };
@@ -118,7 +142,7 @@ function App() {
       if (cancelled) return;
       if (data.session) {
         setSession(data.session);
-        await loadRemote(data.session.user.id);
+        await loadRemote(data.session.user.id, true);
         return;
       }
       if (localStorage.getItem("ephemeris-signed-out") !== "1") {
@@ -169,7 +193,7 @@ function App() {
     if (uid) {
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
-      await loadRemote(uid);
+      await loadRemote(uid, true);
     }
   };
 
@@ -300,6 +324,7 @@ function App() {
         auth={auth}
         onSessionChange={(newSession) => {
           localStorage.removeItem("ephemeris-signed-out");
+          clearGuestData();
           setSession(newSession);
           setIsGuest(false);
         }}
