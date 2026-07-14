@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, Settings as SettingsIcon } from "lucide-react";
+import { Check, Settings as SettingsIcon, Trash2 } from "lucide-react";
 import { CONTEXT_TAGS, DRAGON_SPECIES, type ProfileData, type Sighting, type SightingPatch } from "../types";
 import { useInView } from "../hooks/useInView";
 import { revealClass, revealStyle } from "../utils/reveal";
@@ -54,11 +54,12 @@ interface Props {
   sightings: Sighting[];
   onLog: (s: Sighting) => void;
   onUpdateSighting: (id: string, patch: SightingPatch) => void;
+  onDeleteSighting: (id: string) => void;
   onOpenSettings: () => void;
   accountLabel: ReactNode;
 }
 
-export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettings, accountLabel }: Props) {
+export function Home({ profile, sightings, onLog, onUpdateSighting, onDeleteSighting, onOpenSettings, accountLabel }: Props) {
   const [moodDragons, setMoodDragons] = useState(() => pickMoodDragons(profile));
   const [selectedDragon, setSelectedDragon] = useState<string | null>(null);
   const [activeSightingId, setActiveSightingId] = useState<string | null>(null);
@@ -147,6 +148,12 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
     setTags([]);
     setNote("");
     setTimeout(() => setJustLogged(false), 3000);
+  };
+
+  const deleteSighting = (sighting: Sighting, dragonName: string) => {
+    if (window.confirm(`Remove the ${dragonName} sighting from your field journal?`)) {
+      onDeleteSighting(sighting.id);
+    }
   };
 
   return (
@@ -361,9 +368,20 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
                             <p className="font-heading" style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--foreground)" }}>
                               {dragon.name}
                             </p>
-                            <span style={{ fontStyle: "italic", fontSize: "0.75rem", color: "var(--muted-foreground)", flexShrink: 0 }}>
-                              {relativeTime(s.timestamp)}
-                            </span>
+                            <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
+                              <span style={{ fontStyle: "italic", fontSize: "0.75rem", color: "var(--muted-foreground)" }}>
+                                {relativeTime(s.timestamp)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => deleteSighting(s, dragon.name)}
+                                aria-label={`Remove ${dragon.name} sighting`}
+                                className="p-1 rounded-full icon-hover"
+                                style={{ color: "var(--muted-foreground)" }}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
                           </div>
                           {tagLabels.length > 0 && (
                             <p style={{ fontSize: "0.78rem", color: "var(--muted-foreground)", marginTop: 1 }}>{tagLabels.join(" · ")}</p>
@@ -418,9 +436,20 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
                                       <p className="font-heading" style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--foreground)" }}>
                                         {dragon.name}
                                       </p>
-                                      <span style={{ fontStyle: "italic", fontSize: "0.75rem", color: "var(--muted-foreground)", flexShrink: 0 }}>
-                                        {new Date(s.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                                      </span>
+                                      <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
+                                        <span style={{ fontStyle: "italic", fontSize: "0.75rem", color: "var(--muted-foreground)" }}>
+                                          {new Date(s.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => deleteSighting(s, dragon.name)}
+                                          aria-label={`Remove ${dragon.name} sighting`}
+                                          className="p-1 rounded-full icon-hover"
+                                          style={{ color: "var(--muted-foreground)" }}
+                                        >
+                                          <Trash2 size={15} />
+                                        </button>
+                                      </div>
                                     </div>
                                     {tagLabels.length > 0 && (
                                       <p style={{ fontSize: "0.78rem", color: "var(--muted-foreground)", marginTop: 1 }}>{tagLabels.join(" · ")}</p>

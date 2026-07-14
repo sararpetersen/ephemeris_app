@@ -12,6 +12,7 @@ import {
   saveProfileRemote,
   insertSightingRemote,
   updateSightingRemote,
+  deleteSightingRemote,
   replaceAllSightingsRemote,
   deleteAllRemoteData,
 } from "./utils/supabaseData";
@@ -208,6 +209,16 @@ function App() {
     if (uid) await updateSightingRemote(uid, id, patch);
   };
 
+  const handleDeleteSighting = async (id: string) => {
+    const uid = await getCurrentUserId();
+    setSightings((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      if (!uid) saveGuestSightings(next);
+      return next;
+    });
+    if (uid) await deleteSightingRemote(uid, id);
+  };
+
   const handleSignOut = async () => {
     const uid = await getCurrentUserId();
     if (uid) {
@@ -303,6 +314,7 @@ function App() {
       sightings={sightings}
       onLog={handleLog}
       onUpdateSighting={handleUpdateSighting}
+      onDeleteSighting={handleDeleteSighting}
       onOpenSettings={() => setScreen("settings")}
       accountLabel={auth.isGuest || !auth.email ? getLocalJournalLabel() : auth.email}
     />

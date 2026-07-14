@@ -102,6 +102,11 @@ export async function updateSightingRemote(userId: string, id: string, patch: Si
   if (error) throw error;
 }
 
+export async function deleteSightingRemote(userId: string, id: string): Promise<void> {
+  const { error } = await supabase.from("ephemeris_sightings").delete().eq("user_id", userId).eq("id", id);
+  if (error) throw error;
+}
+
 export async function replaceAllSightingsRemote(userId: string, sightings: Sighting[]): Promise<void> {
   const { error: deleteError } = await supabase.from("ephemeris_sightings").delete().eq("user_id", userId);
   if (deleteError) throw deleteError;
