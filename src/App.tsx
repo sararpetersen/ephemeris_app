@@ -15,7 +15,7 @@ import {
   replaceAllSightingsRemote,
   deleteAllRemoteData,
 } from "./utils/supabaseData";
-import { DEFAULT_PROFILE, type ProfileData, type Sighting } from "./types";
+import { DEFAULT_PROFILE, type ProfileData, type Sighting, type SightingPatch } from "./types";
 
 type Stage = "loading" | "auth" | "onboarding" | "app";
 type Screen = "home" | "settings";
@@ -198,7 +198,7 @@ function App() {
     if (uid) await insertSightingRemote(uid, s);
   };
 
-  const handleUpdateSighting = async (id: string, patch: Pick<Sighting, "context" | "note">) => {
+  const handleUpdateSighting = async (id: string, patch: SightingPatch) => {
     const uid = await getCurrentUserId();
     setSightings((prev) => {
       const next = prev.map((s) => (s.id === id ? { ...s, ...patch } : s));

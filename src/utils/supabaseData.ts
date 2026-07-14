@@ -1,5 +1,5 @@
 import { supabase } from "./supabaseClient";
-import { DEFAULT_A11Y, type ProfileData, type Sighting } from "../types";
+import { DEFAULT_A11Y, type ProfileData, type Sighting, type SightingPatch } from "../types";
 
 interface ProfileRow {
   user_id: string;
@@ -89,10 +89,14 @@ export async function insertSightingRemote(userId: string, sighting: Sighting): 
   if (error) throw error;
 }
 
-export async function updateSightingRemote(userId: string, id: string, patch: Pick<Sighting, "context" | "note">): Promise<void> {
+export async function updateSightingRemote(userId: string, id: string, patch: SightingPatch): Promise<void> {
+  const updates: { dragon_key?: string; context?: string[]; note?: string } = {};
+  if (patch.dragonKey !== undefined) updates.dragon_key = patch.dragonKey;
+  if (patch.context !== undefined) updates.context = patch.context;
+  if (patch.note !== undefined) updates.note = patch.note;
   const { error } = await supabase
     .from("ephemeris_sightings")
-    .update({ context: patch.context, note: patch.note })
+    .update(updates)
     .eq("user_id", userId)
     .eq("id", id);
   if (error) throw error;

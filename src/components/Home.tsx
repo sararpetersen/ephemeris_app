@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, Settings as SettingsIcon } from "lucide-react";
-import { CONTEXT_TAGS, DRAGON_SPECIES, type ProfileData, type Sighting } from "../types";
+import { CONTEXT_TAGS, DRAGON_SPECIES, type ProfileData, type Sighting, type SightingPatch } from "../types";
 import { useInView } from "../hooks/useInView";
 import { revealClass, revealStyle } from "../utils/reveal";
 
@@ -53,7 +53,7 @@ interface Props {
   profile: ProfileData;
   sightings: Sighting[];
   onLog: (s: Sighting) => void;
-  onUpdateSighting: (id: string, patch: Pick<Sighting, "context" | "note">) => void;
+  onUpdateSighting: (id: string, patch: SightingPatch) => void;
   onOpenSettings: () => void;
   accountLabel: ReactNode;
 }
@@ -119,6 +119,12 @@ export function Home({ profile, sightings, onLog, onUpdateSighting, onOpenSettin
   const toggleTag = (key: string) => setTags((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
   const logSighting = (dragonKey: string) => {
+    if (activeSightingId) {
+      onUpdateSighting(activeSightingId, { dragonKey });
+      setSelectedDragon(dragonKey);
+      return;
+    }
+
     const sighting = {
       id: crypto.randomUUID(),
       dragonKey,

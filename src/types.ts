@@ -68,6 +68,8 @@ export interface Sighting {
   timestamp: number;
 }
 
+export type SightingPatch = Partial<Pick<Sighting, "dragonKey" | "context" | "note">>;
+
 export interface ProfileData {
   name: string;
   pronoun: string;
